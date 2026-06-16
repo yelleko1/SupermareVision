@@ -504,70 +504,91 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 	
 	function updateEventFields(event:Array<Dynamic>):Void
 	{
-		songDialog.value1Field.value = (event.length > 1 ? Std.string(event[1]) : '');
-		songDialog.value2Field.value = (event.length > 2 ? Std.string(event[2]) : '');
+		// Match the JSON event configuration schema cleanly
+		var searchName:String = StringTools.trim(Std.string(event[0])).toLowerCase().replace(" ", "_");
+		var selectedDef:Dynamic = Lambda.find(charter.eventStuff, function(e) {
+			if (e == null || e.name == null) return false;
+			var defName:String = Std.string(e.name).toLowerCase().replace(" ", "_");
+			return defName == searchName || Std.string(e.name).toLowerCase() == StringTools.trim(Std.string(event[0])).toLowerCase();
+		});
 		
-		var extra:Array<String> = [];
-		for (i in 1...event.length)
-			extra.push(Std.string(event[i]));
-		songDialog.valueListField.value = extra.join(', ');
-		
-		var selectedDef:Dynamic = Lambda.find(charter.eventStuff, (e) -> e.name == event[0]);
 		var container:Box = songDialog.eventValueContainer;
 		
-		if (container != null) container.removeAllComponents();
+		if (container != null)
+		{
+			container.removeAllComponents();
+		}
 		
 		if (selectedDef != null && selectedDef.values != null && selectedDef.values.length > 0)
 		{
-			container.hidden = false;
+			// Hide legacy standard inputs completely
 			songDialog.value1Field.hidden = true;
 			songDialog.value2Field.hidden = true;
 			songDialog.valueListField.hidden = true;
+			container.hidden = false;
 			
+			var dynamicGrid:haxe.ui.containers.Grid = new haxe.ui.containers.Grid();
+			dynamicGrid.percentWidth = 100;
+			dynamicGrid.columns = 2;
+			container.addComponent(dynamicGrid);
+			
+			// Build fields strictly based on the exact amount found in the event JSON schema
 			for (i in 0...selectedDef.values.length)
 			{
 				final idx = i;
 				var valDef:Dynamic = selectedDef.values[i];
-				var row:HBox = new HBox();
-				row.percentWidth = 100;
 				
 				var lbl:Label = new Label();
 				lbl.text = (valDef != null && Reflect.hasField(valDef, 'name') ? Reflect.field(valDef, 'name') : 'Value ${idx + 1}') + ':';
-				lbl.width = 65;
+				lbl.width = 55;
 				lbl.verticalAlign = 'center';
 				
 				var tf:TextField = new TextField();
 				tf.percentWidth = 100;
-				tf.id = 'eventValue_' + idx;
+				tf.horizontalAlign = 'right';
 				
-				if (event.length > idx + 1)
+				// Pull value directly from its designated index slot: event[1] for Value 1, event[2] for Value 2, event[3] for Value 3
+				if (event.length > idx + 1 && event[idx + 1] != null && Std.string(event[idx + 1]).length > 0)
 				{
-					tf.value = Std.string(event[idx + 1]);
+					tf.text = Std.string(event[idx + 1]);
 				}
 				else
 				{
-					tf.value = (valDef != null && Reflect.hasField(valDef, 'defaultValue') ? Std.string(Reflect.field(valDef, 'defaultValue')) : '');
+					tf.text = (valDef != null && Reflect.hasField(valDef, 'defaultValue') ? Std.string(Reflect.field(valDef, 'defaultValue')) : '');
 				}
 				
 				tf.onChange = function(e) {
 					final selectedEvents = charter.getSelectedEvents();
 					if (selectedEvents.length != 1 || selectedEvents[0][1][charter.curEventSelected] == null) return;
 					
-					selectedEvents[0][1][charter.curEventSelected][idx + 1] = tf.value;
+					var activeEvent = selectedEvents[0][1][charter.curEventSelected];
+					
+					// Ensure the array has enough space specifically for the index we're writing to
+					while (activeEvent.length <= idx + 1)
+					{
+						activeEvent.push('');
+					}
+					
+					// Save modifications back to the exact array index position cleanly
+					activeEvent[idx + 1] = tf.text;
+					
 					scheduleGridUpdate();
-				}
+				};
 				
-				row.addComponent(lbl);
-				row.addComponent(tf);
-				container.addComponent(row);
+				dynamicGrid.addComponent(lbl);
+				dynamicGrid.addComponent(tf);
 			}
 		}
 		else
 		{
+			// Fallback view state if no JSON definition properties are found
 			if (container != null) container.hidden = true;
 			songDialog.valueListField.hidden = true;
 			songDialog.value1Field.hidden = false;
 			songDialog.value2Field.hidden = false;
+			
+			songDialog.value1Field.text = (event.length > 1 ? Std.string(event[1]) : '');
+			songDialog.value2Field.text = (event.length > 2 ? Std.string(event[2]) : '');
 		}
 	}
 	
