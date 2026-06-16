@@ -2182,9 +2182,10 @@ class PlayState extends MusicBeatState
 		var value1:String = '';
 		var value2Str:String = '';
 		
-		if (Std.is(value1OrValues, Array<Dynamic>))
+		if (Std.is(value1OrValues, Array))
 		{
-			for (v in value1OrValues)
+			var arr = cast(value1OrValues, Array<Dynamic>);
+			for (v in arr)
 				values.push(Std.string(v));
 			value1 = (values.length > 0 ? (values[0] ?? '') : '');
 			value2Str = (values.length > 1 ? (values[1] ?? '') : '');
