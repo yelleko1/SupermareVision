@@ -952,7 +952,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		for (mod in Mods.globalMods)
 			directories.push(Paths.mods(mod + '/events/'));
 			
-		var eventexts = ['.json', '.txt', '.hx', '.hxs', '.hscript'];
+		var eventexts = ['.json'];
 		var removeShit = [5, 4, 3, 4, 8];
 		
 		inline function addEventDefinition(def:Dynamic, fallbackName:String):Void
@@ -1008,10 +1008,6 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 							else addEventDefinition(parsed, fileToCheck);
 						}
 						else eventStuff.push({name: fileToCheck, description: content});
-					}
-					else if (file.endsWith('.hx') || file.endsWith('.hxs') || file.endsWith('.hscript'))
-					{
-						eventStuff.push({name: fileToCheck, description: 'Scripted description'});
 					}
 					else
 					{
@@ -2242,32 +2238,54 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 				curRenderedNotes.add(note);
 				
 				var text:String = 'Event: ' + note.eventName + ' (' + Math.floor(note.strumTime) + ' ms)';
-				var eventDef:Dynamic = Lambda.find(eventStuff, (e) -> e.name == note.eventName);
-				if (note.eventValues != null && note.eventValues.length > 0)
+				
+				var searchName:String = StringTools.trim(Std.string(note.eventName)).toLowerCase().replace(" ", "_");
+				var eventDef:Dynamic = Lambda.find(eventStuff, function(e) {
+					if (e == null || e.name == null) return false;
+					var defName:String = Std.string(e.name).toLowerCase().replace(" ", "_");
+					return defName == searchName || Std.string(e.name).toLowerCase() == StringTools.trim(Std.string(note.eventName)).toLowerCase();
+				});
+				
+				var rawSubEvents:Array<Dynamic> = cast i[1];
+				var rawEventData:Array<Dynamic> = (rawSubEvents != null && rawSubEvents.length > 0) ? rawSubEvents[0] : null;
+				
+				if (eventDef != null && eventDef.values != null && eventDef.values.length > 0)
 				{
-					if (eventDef != null && eventDef.values != null)
+					var maxValues:Int = eventDef.values.length;
+					for (j in 0...maxValues)
 					{
-						for (j in 0...note.eventValues.length)
+						var valDef:Dynamic = eventDef.values[j];
+						var label:String = (valDef != null && Reflect.hasField(valDef, 'name')) ? Reflect.field(valDef, 'name') : 'Value ${j + 1}';
+						
+						var valStr:String = '';
+						
+						if (rawEventData != null && (j + 1) < rawEventData.length && rawEventData[j + 1] != null)
 						{
-							var label:String = 'Value ${j + 1}';
-							if (j < eventDef.values.length)
-							{
-								var valDef:Dynamic = eventDef.values[j];
-								if (valDef != null && Reflect.hasField(valDef, 'name')) label = Reflect.field(valDef, 'name');
-							}
-							text += '\n' + label + ': ' + note.eventValues[j];
+							valStr = Std.string(rawEventData[j + 1]);
 						}
-					}
-					else
-					{
-						for (j in 0...note.eventValues.length)
-							text += '\nValue ${j + 1}: ' + note.eventValues[j];
+						else if (valDef != null && Reflect.hasField(valDef, 'defaultValue'))
+						{
+							valStr = Std.string(Reflect.field(valDef, 'defaultValue'));
+						}
+						
+						text += '\n' + label + ': ' + valStr;
 					}
 				}
 				else
 				{
-					text += '\nValue 1: ' + note.eventVal1 + '\nValue 2: ' + note.eventVal2;
+					if (rawEventData != null && rawEventData.length > 1)
+					{
+						for (j in 1...rawEventData.length)
+						{
+							text += '\nValue ${j}: ' + rawEventData[j];
+						}
+					}
+					else
+					{
+						text += '\nValue 1: ' + note.eventVal1 + '\nValue 2: ' + note.eventVal2;
+					}
 				}
+				
 				if (note.eventLength > 1) text = note.eventLength + ' Events:\n' + note.eventName;
 				
 				var daText:AttachedFlxText = new AttachedFlxText(0, 0, 400, text, 12);
@@ -2277,7 +2295,6 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 				if (note.eventLength > 1) daText.yAdd += 8;
 				curRenderedNoteType.add(daText);
 				daText.sprTracker = note;
-				// trace('test: ' + i[0], 'startThing: ' + startThing, 'endThing: ' + endThing);
 			}
 		}
 		

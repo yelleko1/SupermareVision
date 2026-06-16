@@ -504,7 +504,6 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 	
 	function updateEventFields(event:Array<Dynamic>):Void
 	{
-		// Match the JSON event configuration schema cleanly
 		var searchName:String = StringTools.trim(Std.string(event[0])).toLowerCase().replace(" ", "_");
 		var selectedDef:Dynamic = Lambda.find(charter.eventStuff, function(e) {
 			if (e == null || e.name == null) return false;
@@ -519,9 +518,8 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 			container.removeAllComponents();
 		}
 		
-		if (selectedDef != null && selectedDef.values != null && selectedDef.values.length > 0)
+		if (selectedDef != null && (Reflect.hasField(selectedDef, 'valueNums') || (selectedDef.values != null && selectedDef.values.length > 0)))
 		{
-			// Hide legacy standard inputs completely
 			songDialog.value1Field.hidden = true;
 			songDialog.value2Field.hidden = true;
 			songDialog.valueListField.hidden = true;
@@ -532,11 +530,20 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 			dynamicGrid.columns = 2;
 			container.addComponent(dynamicGrid);
 			
-			// Build fields strictly based on the exact amount found in the event JSON schema
-			for (i in 0...selectedDef.values.length)
+			var numValues:Int = 0;
+			if (Reflect.hasField(selectedDef, 'valueNums') && Reflect.field(selectedDef, 'valueNums') != null)
+			{
+				numValues = Std.int(Reflect.field(selectedDef, 'valueNums'));
+			}
+			else if (selectedDef.values != null)
+			{
+				numValues = selectedDef.values.length;
+			}
+			
+			for (i in 0...numValues)
 			{
 				final idx = i;
-				var valDef:Dynamic = selectedDef.values[i];
+				var valDef:Dynamic = (selectedDef.values != null && idx < selectedDef.values.length) ? selectedDef.values[idx] : null;
 				
 				var lbl:Label = new Label();
 				lbl.text = (valDef != null && Reflect.hasField(valDef, 'name') ? Reflect.field(valDef, 'name') : 'Value ${idx + 1}') + ':';
@@ -547,7 +554,6 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 				tf.percentWidth = 100;
 				tf.horizontalAlign = 'right';
 				
-				// Pull value directly from its designated index slot: event[1] for Value 1, event[2] for Value 2, event[3] for Value 3
 				if (event.length > idx + 1 && event[idx + 1] != null && Std.string(event[idx + 1]).length > 0)
 				{
 					tf.text = Std.string(event[idx + 1]);
@@ -563,13 +569,11 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 					
 					var activeEvent = selectedEvents[0][1][charter.curEventSelected];
 					
-					// Ensure the array has enough space specifically for the index we're writing to
 					while (activeEvent.length <= idx + 1)
 					{
 						activeEvent.push('');
 					}
 					
-					// Save modifications back to the exact array index position cleanly
 					activeEvent[idx + 1] = tf.text;
 					
 					scheduleGridUpdate();
@@ -581,7 +585,6 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 		}
 		else
 		{
-			// Fallback view state if no JSON definition properties are found
 			if (container != null) container.hidden = true;
 			songDialog.valueListField.hidden = true;
 			songDialog.value1Field.hidden = false;
