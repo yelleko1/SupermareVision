@@ -75,7 +75,13 @@ class Conductor
 			if (time >= change.songTime) lastChange = change;
 		}
 		
-		return (lastChange ?? {stepTime: 0, songTime: 0, bpm: bpm, stepCrotchet: stepCrotchet});
+		return (lastChange ??
+			{
+				stepTime: 0,
+				songTime: 0,
+				bpm: bpm,
+				stepCrotchet: stepCrotchet
+			});
 	}
 	
 	public static function getBPMFromStep(step:Float)
@@ -86,7 +92,13 @@ class Conductor
 			if (change.stepTime <= step) lastChange = change;
 		}
 		
-		return (lastChange ?? {stepTime: 0, songTime: 0, bpm: bpm, stepCrotchet: stepCrotchet});
+		return (lastChange ??
+			{
+				stepTime: 0,
+				songTime: 0,
+				bpm: bpm,
+				stepCrotchet: stepCrotchet
+			});
 	}
 	
 	public inline static function stepToSeconds(step:Float):Float
@@ -124,8 +136,14 @@ class Conductor
 	public static function mapBPMChanges(song:Song)
 	{
 		bpmChangeMap.resize(0);
-		bpmChangeMap.push({stepTime: 0, songTime: 0, bpm: song.bpm, stepCrotchet: calculateCrochet(song.bpm) / 4});
-		
+		bpmChangeMap.push(
+			{
+				stepTime: 0,
+				songTime: 0,
+				bpm: song.bpm,
+				stepCrotchet: calculateCrochet(song.bpm) / 4
+			});
+			
 		var curBPM:Float = song.bpm;
 		var totalSteps:Int = 0;
 		var totalPos:Float = 0;
@@ -150,9 +168,35 @@ class Conductor
 		}
 	}
 	
-	inline static function getSectionBeats(song:Song, section:Int)
+	public inline static function getSectionBeats(song:Song, section:Int):Float
 	{
-		return (song.notes[section]?.sectionBeats ?? 4);
+		var sec = song.notes[section];
+		var num:Null<Int> = null;
+		var den:Null<Int> = null;
+		
+		if (sec != null)
+		{
+			num = sec.timeSignatureNumerator;
+			den = sec.timeSignatureDenominator;
+		}
+		
+		if (num == null || den == null)
+		{
+			if (song.timeSignature != null)
+			{
+				var parts = song.timeSignature.split('/');
+				if (parts.length == 2)
+				{
+					num = Std.parseInt(parts[0]) ?? 4;
+					den = Std.parseInt(parts[1]) ?? 4;
+				}
+			}
+		}
+		
+		num = num ?? 4;
+		den = den ?? 4;
+		
+		return num * (4.0 / den);
 	}
 	
 	public inline static function calculateCrochet(bpm:Float)

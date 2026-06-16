@@ -5,6 +5,7 @@ import funkin.data.Chart;
 import haxe.ds.IntMap;
 import haxe.Json;
 import haxe.io.Bytes;
+import haxe.ui.components.TextField;
 
 import lime.media.AudioBuffer;
 
@@ -34,6 +35,8 @@ import flixel.addons.ui.FlxUI;
 import flixel.group.FlxGroup;
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.util.FlxAxes;
+
+import haxe.ui.components.TextField;
 
 import funkin.objects.Character;
 import funkin.data.StageData;
@@ -218,6 +221,34 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	var curZoom:Int = 2;
 	var waveformSprite:FlxSprite;
 	var gridLayer:FlxTypedGroup<FlxSprite>;
+	
+	public function reloadStrumShit():Void
+	{
+		if (strumLineNotes == null)
+		{
+			strumLineNotes = new FlxTypedGroup<StrumNote>();
+		}
+		else
+		{
+			for (m in strumLineNotes.members)
+			{
+				if (m != null) m.destroy();
+			}
+			strumLineNotes.clear();
+		}
+		
+		var total:Int = Std.int(song.keys * song.lanes);
+		for (i in 0...total)
+		{
+			var note:StrumNote = new StrumNote(0, GRID_SIZE * (i + 1), strumLine != null ? strumLine.y : 50, i % song.keys);
+			note.setGraphicSize(GRID_SIZE, GRID_SIZE);
+			note.playAnim('static', true);
+			note.scrollFactor.set(1, 1);
+			note.updateHitbox();
+			note.alpha = 0;
+			strumLineNotes.add(note);
+		}
+	}
 	
 	public static var quantization:Int = 16;
 	public static var curQuant = 3;
@@ -471,7 +502,8 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			speed: 1,
 			stage: 'stage',
 			keys: 4,
-			lanes: 2
+			lanes: 2,
+			timeSignature: '4/4'
 		};
 	}
 	
@@ -712,7 +744,10 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		for (i in 0...song.notes[curSec].sectionNotes.length)
 		{
 			var note:Array<Dynamic> = song.notes[curSec].sectionNotes[i];
-			notesCopied.push(note);
+			var copiedNote:Array<Dynamic>;
+			if (note[4] != null) copiedNote = [note[0], note[1], note[2], note[3], note[4]];
+			else copiedNote = [note[0], note[1], note[2], note[3]];
+			notesCopied.push(copiedNote);
 		}
 		
 		var startThing:Float = sectionStartTime();
@@ -740,8 +775,8 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	{
 		if (notesCopied.length < 1) return;
 		
-		var addToTime:Float = Conductor.stepCrotchet * (getSectionBeats() * 4 * (curSec - sectionToCopy));
-		// ADDTOTIME HAS TO BE REWRITTEN
+		// Calculate time difference between copy section start and current section start
+		var addToTime:Float = sectionStartTime() - sectionStartTime(sectionToCopy - curSec);
 		
 		for (note in notesCopied)
 		{
@@ -934,7 +969,10 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			else if (Reflect.hasField(def, 'eventDescription')) description = Reflect.field(def, 'eventDescription');
 			
 			var values:Array<Dynamic> = null;
-			if (Reflect.hasField(def, 'values') && Std.is(Reflect.field(def, 'values'), Array<Dynamic>)) values = Reflect.field(def, 'values');
+			if (Reflect.hasField(def, 'values') && Std.is(Reflect.field(def, 'values'), Array))
+			{
+				values = cast(Reflect.field(def, 'values'), Array<Dynamic>);
+			}
 			
 			if (name.length > 0) eventStuff.push({name: name, description: description, values: values});
 		}
@@ -962,9 +1000,9 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 						var parsed:Dynamic = FunkinAssets.parseJson(content);
 						if (parsed != null)
 						{
-							if (Reflect.hasField(parsed, 'events') && Std.is(Reflect.field(parsed, 'events'), Array<Dynamic>))
+							if (Reflect.hasField(parsed, 'events') && Std.is(Reflect.field(parsed, 'events'), Array))
 							{
-								for (def in Reflect.field(parsed, 'events'))
+								for (def in cast(Reflect.field(parsed, 'events'), Array<Dynamic>))
 									addEventDefinition(def, fileToCheck);
 							}
 							else addEventDefinition(parsed, fileToCheck);
@@ -1089,16 +1127,20 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	
 	function getSectionIndex(time:Float = 0):Int
 	{
-		var daBPM:Float = song.bpm, daPos:Float = 0, i:Int = 0;
+		var daBPM:Float = song.bpm;
+		var daPos:Float = 0;
+		var i:Int = 0;
 		
-		while (true)
+		while (i < song.notes.length)
 		{
 			if (song.notes[i]?.changeBPM) daBPM = song.notes[i].bpm;
-			
-			daPos += (getSectionBeats(i++) * (60000 / daBPM));
-			
-			if (daPos >= time) return i;
+			var sectionLength:Float = getSectionBeats(i) * (60000 / daBPM);
+			if (time < daPos + sectionLength) return i;
+			daPos += sectionLength;
+			++i;
 		}
+		
+		return Std.int(Math.max(0, song.notes.length - 1));
 	}
 	
 	var lastConductorPos:Float;
@@ -1498,13 +1540,22 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		if (FlxG.keys.pressed.ALT && (pressedLB || pressedRB || holdingLB || holdingRB)) playbackSpeed = 1;
 	}
 	
-	public function changeQuantization(mod:Int = 0):Int
+	public static function changeQuantization(amount:Int = 0):Void
 	{
-		curQuant = Std.int(MathUtil.euclideanMod(curQuant + mod, quantizations.length));
+		var allowedDenominators:Array<Int> = [2, 4, 8, 16];
+		var currentIndex:Int = allowedDenominators.indexOf(quantization);
 		
-		quant.animation.play('q', true, false, curQuant);
+		if (currentIndex == -1)
+		{
+			quantization = 4;
+			return;
+		}
 		
-		return quantization = quantizations[curQuant];
+		currentIndex += amount;
+		if (currentIndex < 0) currentIndex = 0;
+		if (currentIndex >= allowedDenominators.length) currentIndex = allowedDenominators.length - 1;
+		
+		quantization = allowedDenominators[currentIndex];
 	}
 	
 	public function scrollQuantized(up:Bool):Void
@@ -1586,44 +1637,33 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	
 	function updateVolume():Void
 	{
-		metronomeVolume = (ui.songDialog.metronomeMuteCheckbox.value ? 0 : ui.songDialog.metronomeVolumeStepper.value);
+		var sec = song.notes[curSec];
+		var num:Null<Int> = sec != null ? sec.timeSignatureNumerator : null;
+		var den:Null<Int> = sec != null ? sec.timeSignatureDenominator : null;
 		
-		audio.inst.volume = (ui.songDialog.instrumentalMuteCheckbox.value ? 0 : ui.songDialog.instrumentalVolumeStepper.value);
-		
-		audio.opponentVolume = (ui.songDialog.opponentMuteCheckbox.value ? 0 : ui.songDialog.opponentVolumeStepper.value);
-		
-		audio.playerVolume = (ui.songDialog.playerMuteCheckbox.value ? 0 : ui.songDialog.playerVolumeStepper.value);
-	}
-	
-	function reloadStrumShit()
-	{
-		if (strumLineNotes != null)
+		if (num == null || den == null)
 		{
-			// rewriting noteskin shit i will add this back later
-			// var noteSkin = new NoteSkinHelper(Paths.noteskin(song.arrowSkin));
-			
-			// NoteSkinHelper.arrowSkins = [noteSkin.data.playerSkin, noteSkin.data.opponentSkin];
-			// if (song.lanes > 2) for (i in 2...song.lanes)
-			// 	NoteSkinHelper.arrowSkins.push(noteSkin.data.extraSkin);
-			
-			// noteSkin.destroy();
-			
-			strumLineNotes.clear();
-			
-			for (i in 0...(song.keys * song.lanes))
+			if (song.timeSignature != null)
 			{
-				var note:StrumNote = new StrumNote(0, 0, 0, i % song.keys);
-				
-				note.setPosition(GRID_SIZE * (i + 1), strumLine.y);
-				note.setGraphicSize(GRID_SIZE, GRID_SIZE);
-				note.playAnim('static', true);
-				note.scrollFactor.set(1, 1);
-				note.updateHitbox();
-				note.alpha = 0;
-				
-				strumLineNotes.add(note);
+				var parts = song.timeSignature.split('/');
+				if (parts.length == 2)
+				{
+					num = Std.parseInt(parts[0]) ?? 4;
+					den = Std.parseInt(parts[1]) ?? 4;
+				}
 			}
 		}
+		
+		num = num ?? 4;
+		den = den ?? 4;
+		
+		ui.songDialog.timeSigNumStepper.value = num;
+		ui.songDialog.timeSigDenStepper.value = den;
+		ui.songDialog.gfSectionCheckbox.value = sec.gfSection;
+		ui.songDialog.bpmCheckbox.value = sec.changeBPM;
+		ui.songDialog.bpmStepper.value = sec.bpm;
+		
+		updateHeads();
 	}
 	
 	var lastSecBeats:Float = 0;
@@ -1646,9 +1686,9 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		// this is all kind of cringe but its okay
 		final rowsPerBeat:Int = Std.int(4 * zoomList[curZoom]);
 		
-		final prevRows:Int = ((getSectionBeats(curSec - 1) ?? 0) * rowsPerBeat);
-		final curRows:Int = ((getSectionBeats() ?? 0) * rowsPerBeat);
-		final nextRows:Int = ((getSectionBeats(curSec + 1) ?? 0) * rowsPerBeat);
+		final prevRows:Int = Std.int(getSectionBeats(curSec - 1) * rowsPerBeat);
+		final curRows:Int = Std.int(getSectionBeats() * rowsPerBeat);
+		final nextRows:Int = Std.int(getSectionBeats(curSec + 1) * rowsPerBeat);
 		
 		final columns:Int = Std.int((song.keys * song.lanes) + 1);
 		
@@ -2066,9 +2106,27 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	function updateSectionUI():Void
 	{
 		var sec = song.notes[curSec];
+		var num:Null<Int> = sec != null ? sec.timeSignatureNumerator : null;
+		var den:Null<Int> = sec != null ? sec.timeSignatureDenominator : null;
 		
-		ui.songDialog.sectionBeatsStepper.value = getSectionBeats();
-		ui.songDialog.mustHitCheckbox.value = sec.mustHitSection;
+		if (num == null || den == null)
+		{
+			if (song.timeSignature != null)
+			{
+				var parts = song.timeSignature.split('/');
+				if (parts.length == 2)
+				{
+					num = Std.parseInt(parts[0]) ?? 4;
+					den = Std.parseInt(parts[1]) ?? 4;
+				}
+			}
+		}
+		
+		num = num ?? 4;
+		den = den ?? 4;
+		
+		ui.songDialog.timeSigNumStepper.value = num;
+		ui.songDialog.timeSigDenStepper.value = den;
 		ui.songDialog.gfSectionCheckbox.value = sec.gfSection;
 		ui.songDialog.bpmCheckbox.value = sec.changeBPM;
 		ui.songDialog.bpmStepper.value = sec.bpm;
@@ -2183,7 +2241,33 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 				var note:EditorNote = setupNoteData(i, false);
 				curRenderedNotes.add(note);
 				
-				var text:String = 'Event: ' + note.eventName + ' (' + Math.floor(note.strumTime) + ' ms)' + '\nValue 1: ' + note.eventVal1 + '\nValue 2: ' + note.eventVal2;
+				var text:String = 'Event: ' + note.eventName + ' (' + Math.floor(note.strumTime) + ' ms)';
+				var eventDef:Dynamic = Lambda.find(eventStuff, (e) -> e.name == note.eventName);
+				if (note.eventValues != null && note.eventValues.length > 0)
+				{
+					if (eventDef != null && eventDef.values != null)
+					{
+						for (j in 0...note.eventValues.length)
+						{
+							var label:String = 'Value ${j + 1}';
+							if (j < eventDef.values.length)
+							{
+								var valDef:Dynamic = eventDef.values[j];
+								if (valDef != null && Reflect.hasField(valDef, 'name')) label = Reflect.field(valDef, 'name');
+							}
+							text += '\n' + label + ': ' + note.eventValues[j];
+						}
+					}
+					else
+					{
+						for (j in 0...note.eventValues.length)
+							text += '\nValue ${j + 1}: ' + note.eventValues[j];
+					}
+				}
+				else
+				{
+					text += '\nValue 1: ' + note.eventVal1 + '\nValue 2: ' + note.eventVal2;
+				}
 				if (note.eventLength > 1) text = note.eventLength + ' Events:\n' + note.eventName;
 				
 				var daText:AttachedFlxText = new AttachedFlxText(0, 0, 400, text, 12);
@@ -2304,10 +2388,14 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			note.loadGraphic(Paths.image('editors/eventArrow'));
 			note.eventName = getEventName(i[1]);
 			note.eventLength = i[1].length;
-			if (i[1].length < 2)
+			note.eventValues = [];
+			if (i[1].length > 0 && Std.is(i[1][0], Array))
 			{
-				note.eventVal1 = i[1][0][1];
-				note.eventVal2 = i[1][0][2];
+				for (j in 1...i[1][0].length)
+					note.eventValues.push(Std.string(i[1][0][j]));
+				if (i[1][0].length > 1) note.eventVal1 = Std.string(i[1][0][1]);
+				if (i[1][0].length > 2) note.eventVal2 = Std.string(i[1][0][2]);
+				trace('Loaded event note: ${note.eventName} values=${note.eventValues} rawEvent=${i[1][0]} totalEvents=${i[1].length}');
 			}
 			note.noteData = -1;
 			intendedData = -1;
@@ -2321,7 +2409,8 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		if (isNextSection) num = 1;
 		if (isPrevSection) num = -1;
 		var beats:Float = getSectionBeats(curSec + num);
-		note.y = getYfromStrumNotes(daStrumTime - sectionStartTime(), beats);
+		var sectionStart:Float = sectionStartTime(num);
+		note.y = getYfromStrumNotes(daStrumTime - sectionStart, beats);
 		// trace
 		// if(note.y < -150) note.y = -150;
 		return note;
@@ -2353,11 +2442,12 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		return spr;
 	}
 	
-	private function addSection(sectionBeats:Int = 4):Void
+	private function addSection(sectionNum:Int = 4, sectionDen:Int = 4):Void
 	{
 		var sec:SongSection =
 			{
-				sectionBeats: sectionBeats,
+				timeSignatureNumerator: sectionNum,
+				timeSignatureDenominator: sectionDen,
 				bpm: song.bpm,
 				changeBPM: false,
 				mustHitSection: true,
@@ -2437,7 +2527,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		// curUndoIndex++;
 		// var newsong = song.notes;
 		//	undos.push(newsong);
-		var noteStrum = getStrumTime(dummyArrow.y * (getSectionBeats() / 4), false) + sectionStartTime();
+		var noteStrum = getStrumTime(dummyArrow.y, false) + sectionStartTime();
 		var noteData = Math.floor((FlxG.mouse.x - GRID_SIZE) / GRID_SIZE);
 		var noteSus = 0;
 		var daAlt = false;
@@ -2460,11 +2550,32 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		}
 		else
 		{
-			var event = eventStuff[ui.songDialog.eventDropdown.selectedIndex].name;
-			var text1 = ui.songDialog.value1Field.value;
-			var text2 = ui.songDialog.value2Field.value;
-			
-			newNote = [noteStrum, [[event, text1, text2]]];
+			var eventName:String = eventStuff[ui.songDialog.eventDropdown.selectedIndex].name;
+			var values:Array<String> = [];
+			var evtDef:Dynamic = eventStuff[ui.songDialog.eventDropdown.selectedIndex];
+			if (evtDef != null && evtDef.values != null && evtDef.values.length > 0)
+			{
+				for (j in 0...evtDef.values.length)
+				{
+					var field:TextField = ui.songDialog.eventValueContainer.findComponent('eventValue_' + j, TextField);
+					values.push(field != null ? field.value : '');
+				}
+			}
+			else if (!ui.songDialog.valueListField.hidden)
+			{
+				var parts = (ui.songDialog.valueListField.value == null ? [] : ui.songDialog.valueListField.value.split(','));
+				for (p in parts)
+					values.push(p.trim());
+			}
+			else
+			{
+				values.push(ui.songDialog.value1Field.value);
+				values.push(ui.songDialog.value2Field.value);
+			}
+			var eventEntry:Array<Dynamic> = [eventName];
+			for (v in values)
+				eventEntry.push(v);
+			newNote = [noteStrum, [eventEntry]];
 			song.events.push(newNote);
 			
 			if (!FlxG.keys.pressed.SHIFT || curSelectedNotes.length == 0) curEventSelected = 0;
@@ -2619,15 +2730,8 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	{
 		var leZoom:Float = zoomList[curZoom];
 		if (!doZoomCalc) leZoom = 1;
-		return FlxMath.remapToRange(yPos, gridBG.y, gridBG.y + gridBG.height * leZoom, 0, 16 * Conductor.stepCrotchet);
-	}
-	
-	function getYfromStrum(strumTime:Float, doZoomCalc:Bool = true):Float
-	{
-		var leZoom:Float = zoomList[curZoom];
-		if (!doZoomCalc) leZoom = 1;
-		
-		return (gridBG.y + (Conductor.getStep(strumTime) - Conductor.getStep(sectionStartTime())) * leZoom * GRID_SIZE);
+		var beats:Float = getSectionBeats();
+		return FlxMath.remapToRange(yPos, gridBG.y, gridBG.y + gridBG.height, 0, beats * 4 * Conductor.stepCrotchet);
 	}
 	
 	function getYfromStrumNotes(strumTime:Float, beats:Float):Float
@@ -2636,15 +2740,22 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		return (GRID_SIZE * beats * 4 * zoomList[curZoom] * value + gridBG.y);
 	}
 	
+	function getYfromStrum(strumTime:Float, ?doZoomCalc:Bool = true):Float
+	{
+		var leZoom:Float = zoomList[curZoom];
+		if (!doZoomCalc) leZoom = 1;
+		var sectionStart:Float = sectionStartTime();
+		var localStep:Float = Conductor.getStep(strumTime) - Conductor.getStep(sectionStart);
+		return gridBG.y + localStep * GRID_SIZE * leZoom;
+	}
+	
 	function getNotes():Array<Dynamic>
 	{
 		var noteData:Array<Dynamic> = [];
-		
 		for (i in song.notes)
 		{
 			noteData.push(i.sectionNotes);
 		}
-		
 		return noteData;
 	}
 	
@@ -2734,9 +2845,31 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	 */
 	function onSaveCancel():Void {}
 	
-	function getSectionBeats(?section:Int):Null<Int>
+	function getSectionBeats(?section:Int):Float
 	{
-		return (song.notes[section ?? curSec]?.sectionBeats ?? 4);
+		var secIndex = section ?? curSec;
+		var sec = song.notes[secIndex];
+		
+		var num:Null<Int> = sec != null ? sec.timeSignatureNumerator : null;
+		var den:Null<Int> = sec != null ? sec.timeSignatureDenominator : null;
+		
+		if (num == null || den == null)
+		{
+			if (song.timeSignature != null)
+			{
+				var parts = song.timeSignature.split('/');
+				if (parts.length == 2)
+				{
+					num = Std.parseInt(parts[0]) ?? 4;
+					den = Std.parseInt(parts[1]) ?? 4;
+				}
+			}
+		}
+		
+		num = num ?? 4;
+		den = den ?? 4;
+		
+		return num * (4.0 / den);
 	}
 	
 	public static function enterSong(?time:Float)

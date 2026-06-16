@@ -133,7 +133,7 @@ class MusicBeatSubstate extends FlxSubState
 	
 	function getBeatsOnSection():Float
 	{
-		return PlayState.SONG?.notes[curSection]?.sectionBeats ?? 4.0;
+		return Conductor.getSectionBeats(PlayState.SONG, curSection);
 	}
 	
 	private function updateBeat():Void

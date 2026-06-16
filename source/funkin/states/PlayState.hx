@@ -1370,7 +1370,7 @@ class PlayState extends MusicBeatState
 				if (section.changeBPM) crotchet = (60000 / section.bpm);
 				
 				var minTime:Float = time;
-				time += (crotchet * (section.sectionBeats ?? 4));
+				time += (crotchet * Conductor.getSectionBeats(songData, i));
 				sectionTimes.push({start: minTime, end: time});
 				
 				for (songNotes in section.sectionNotes)
@@ -3054,6 +3054,15 @@ class PlayState extends MusicBeatState
 			scripts.set('altAnim', SONG.notes[curSection].altAnim);
 			scripts.set('gfSection', SONG.notes[curSection].gfSection);
 		}
+		
+		// update beatsPerZoom to follow the section's time signature denominator
+		var den:Null<Int> = SONG.notes[curSection]?.timeSignatureDenominator;
+		if (den == null && SONG.timeSignature != null)
+		{
+			var parts = SONG.timeSignature.split('/');
+			if (parts.length == 2) den = Std.parseInt(parts[1]) ?? 4;
+		}
+		beatsPerZoom = den ?? 4;
 		
 		super.sectionHit();
 		

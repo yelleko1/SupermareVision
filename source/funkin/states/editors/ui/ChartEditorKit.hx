@@ -1,10 +1,16 @@
 package funkin.states.editors.ui;
 
 import haxe.ui.containers.dialogs.Dialog;
+import haxe.ui.components.Label;
+import haxe.ui.components.TextField;
+import haxe.ui.containers.HBox;
+import haxe.ui.containers.Box;
 
 import funkin.data.CharacterData;
 
 using funkin.states.editors.ui.ToolKitUtils;
+
+import flixel.util.FlxTimer;
 
 @:build(haxe.ui.ComponentBuilder.build("assets/excluded/ui/chartEditor/SongDialog.xml"))
 class SongDialog extends Dialog {}
@@ -16,6 +22,8 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 	
 	public var song:funkin.data.Song;
 	public var charter:ChartEditorState;
+	
+	var eventUpdateTimer:FlxTimer = null;
 	
 	public function new(charter:ChartEditorState)
 	{
@@ -78,8 +86,7 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 			charter.gridZoom();
 		}
 		
-		songDialog.timeSignatureField.value = song.timeSignature == null ? '4/4' : song.timeSignature;
-		songDialog.timeSignatureField.onChange = function(event) song.timeSignature = songDialog.timeSignatureField.value;
+		// Global time signature removed from metadata UI; sections still have time signature controls.
 		
 		refreshCharacterDropdowns();
 		refreshStageDropdown();
@@ -164,12 +171,6 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 		
 		// SECTION
 		
-		songDialog.mustHitCheckbox.onChange = function(event) {
-			song.notes[ChartEditorState.curSec].mustHitSection = event.value;
-			
-			charter.reloadGridLayer();
-			charter.updateHeads();
-		}
 		songDialog.gfSectionCheckbox.onChange = function(event) {
 			song.notes[ChartEditorState.curSec].gfSection = event.value;
 			
@@ -177,9 +178,55 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 			charter.updateHeads();
 		}
 		
-		songDialog.sectionBeatsStepper.onChange = function(event) {
-			song.notes[ChartEditorState.curSec].sectionBeats = event.value;
+		songDialog.timeSigNumStepper.onChange = function(event) {
+			song.notes[ChartEditorState.curSec].timeSignatureNumerator = Std.int(event.value);
+			Conductor.mapBPMChanges(song);
+			charter.reloadGridLayer();
+		}
+		songDialog.timeSigDenStepper.onChange = function(event) {
+			var allowedDenominators:Array<Int> = [2, 4, 8, 16];
+			var val:Int = Std.int(event.value);
 			
+			if (!allowedDenominators.contains(val))
+			{
+				var prev:Int = Std.int(event.previousValue);
+				var isIncreasing:Bool = val > prev;
+				
+				if (isIncreasing)
+				{
+					var found = false;
+					for (d in allowedDenominators)
+					{
+						if (d >= val)
+						{
+							val = d;
+							found = true;
+							break;
+						}
+					}
+					if (!found) val = 16;
+				}
+				else
+				{
+					var found = false;
+					var i = allowedDenominators.length - 1;
+					while (i >= 0)
+					{
+						if (allowedDenominators[i] <= val)
+						{
+							val = allowedDenominators[i];
+							found = true;
+							break;
+						}
+						i--;
+					}
+					if (!found) val = 2;
+				}
+				songDialog.timeSigDenStepper.value = val;
+			}
+			
+			song.notes[ChartEditorState.curSec].timeSignatureDenominator = val;
+			Conductor.mapBPMChanges(song);
 			charter.reloadGridLayer();
 		}
 		songDialog.bpmCheckbox.onChange = function(event) {
@@ -307,7 +354,17 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 			if (selectedEvents.length != 1) return;
 			
 			var evtDef = charter.eventStuff[songDialog.eventDropdown.selectedIndex];
-			var name = evtDef != null ? evtDef.name : (cast(charter.eventStuff[songDialog.eventDropdown.selectedIndex], Dynamic).name ?? '');
+			var name:String = '';
+			if (evtDef != null) name = evtDef.name;
+			else
+			{
+				var fallback = charter.eventStuff[songDialog.eventDropdown.selectedIndex];
+				if (fallback != null)
+				{
+					if (Reflect.hasField(fallback, 'name')) name = Reflect.field(fallback, 'name');
+					else if (Std.is(fallback, String)) name = Std.string(fallback);
+				}
+			}
 			var vals:Array<String> = [];
 			if (evtDef != null && evtDef.values != null) for (i in 0...evtDef.values.length)
 				vals.push('');
@@ -345,7 +402,7 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 			if (selectedEvents.length != 1 || selectedEvents[0][1][charter.curEventSelected] == null) return;
 			
 			selectedEvents[0][1][charter.curEventSelected][1] = songDialog.value1Field.value;
-			charter.updateGrid();
+			scheduleGridUpdate();
 		}
 		songDialog.value2Field.onChange = function(event) {
 			final selectedEvents = charter.getSelectedEvents();
@@ -353,7 +410,7 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 			if (selectedEvents.length != 1 || selectedEvents[0][1][charter.curEventSelected] == null) return;
 			
 			selectedEvents[0][1][charter.curEventSelected][2] = songDialog.value2Field.value;
-			charter.updateGrid();
+			scheduleGridUpdate();
 		}
 		
 		songDialog.valueListField.onChange = function(event) {
@@ -372,8 +429,17 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 				
 			// replace event entry
 			selectedEvents[0][1][charter.curEventSelected] = newArr;
-			charter.updateGrid();
+			scheduleGridUpdate();
 		}
+	}
+	
+	public function scheduleGridUpdate():Void
+	{
+		if (eventUpdateTimer != null) eventUpdateTimer.cancel();
+		eventUpdateTimer = FlxTimer.wait(0.08, function() {
+			charter.updateGrid();
+			eventUpdateTimer = null;
+		});
 	}
 	
 	public function updateEventUI():Void
@@ -438,22 +504,71 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 	
 	function updateEventFields(event:Array<Dynamic>):Void
 	{
-		// Ensure there's at least two slots for legacy UI
 		songDialog.value1Field.value = (event.length > 1 ? Std.string(event[1]) : '');
 		songDialog.value2Field.value = (event.length > 2 ? Std.string(event[2]) : '');
 		
-		// Build CSV for additional values
 		var extra:Array<String> = [];
 		for (i in 1...event.length)
 			extra.push(Std.string(event[i]));
 		songDialog.valueListField.value = extra.join(', ');
 		
-		// Show/hide the multiline editor when more than 2 values expected
 		var selectedDef:Dynamic = Lambda.find(charter.eventStuff, (e) -> e.name == event[0]);
-		var expectsMore:Bool = (selectedDef != null && selectedDef.values != null && selectedDef.values.length > 2);
-		songDialog.valueListField.hidden = !expectsMore;
-		songDialog.value1Field.hidden = expectsMore;
-		songDialog.value2Field.hidden = expectsMore;
+		var container:Box = songDialog.eventValueContainer;
+		
+		if (container != null) container.removeAllComponents();
+		
+		if (selectedDef != null && selectedDef.values != null && selectedDef.values.length > 0)
+		{
+			container.hidden = false;
+			songDialog.value1Field.hidden = true;
+			songDialog.value2Field.hidden = true;
+			songDialog.valueListField.hidden = true;
+			
+			for (i in 0...selectedDef.values.length)
+			{
+				final idx = i;
+				var valDef:Dynamic = selectedDef.values[i];
+				var row:HBox = new HBox();
+				row.percentWidth = 100;
+				
+				var lbl:Label = new Label();
+				lbl.text = (valDef != null && Reflect.hasField(valDef, 'name') ? Reflect.field(valDef, 'name') : 'Value ${idx + 1}') + ':';
+				lbl.width = 65;
+				lbl.verticalAlign = 'center';
+				
+				var tf:TextField = new TextField();
+				tf.percentWidth = 100;
+				tf.id = 'eventValue_' + idx;
+				
+				if (event.length > idx + 1)
+				{
+					tf.value = Std.string(event[idx + 1]);
+				}
+				else
+				{
+					tf.value = (valDef != null && Reflect.hasField(valDef, 'defaultValue') ? Std.string(Reflect.field(valDef, 'defaultValue')) : '');
+				}
+				
+				tf.onChange = function(e) {
+					final selectedEvents = charter.getSelectedEvents();
+					if (selectedEvents.length != 1 || selectedEvents[0][1][charter.curEventSelected] == null) return;
+					
+					selectedEvents[0][1][charter.curEventSelected][idx + 1] = tf.value;
+					scheduleGridUpdate();
+				}
+				
+				row.addComponent(lbl);
+				row.addComponent(tf);
+				container.addComponent(row);
+			}
+		}
+		else
+		{
+			if (container != null) container.hidden = true;
+			songDialog.valueListField.hidden = true;
+			songDialog.value1Field.hidden = false;
+			songDialog.value2Field.hidden = false;
+		}
 	}
 	
 	function refreshCharacterDropdowns():Void

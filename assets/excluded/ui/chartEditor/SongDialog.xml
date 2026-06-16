@@ -34,13 +34,7 @@
 			</hbox>
 
 			<spacer height="5"/>
-			<grid width="100%" columns="2">
-				<label text="Time Signature:" width="120" verticalAlign="center"/>
-				<textfield width="100%" id="timeSignatureField" horizontalAlign="right" text="4/4"/>
-			</grid>
-			
-			<spacer height="5"/>
-			<rule/>
+
 			<spacer height="5"/>
 			
 			<hbox width="100%" style="spacing: 10px;">
@@ -155,8 +149,7 @@
 			
 		</vbox>
 
-		<vbox text="Section" width="100%" style="padding: 5px;">
-			<checkbox text="Camera focused on opponent?" id="mustHitCheckbox" verticalAlign="center" tooltip="If enabled, the camera will be focused on the opponent instead of the player."/>
+			<vbox text="Section" width="100%" style="padding: 5px;">
 			<checkbox text="Girlfriend sings?" id="gfSectionCheckbox" verticalAlign="center" tooltip="If enabled, Girlfriend will sing instead of the currently focused character."/>
 			
 			<spacer height="5"/>
@@ -164,8 +157,10 @@
 			<spacer height="5"/>
 
 			<hbox width="100%">
-				<label text="Beats per section:" width="100%" verticalAlign="center"/>
-				<number-stepper pos="4" step="1" width="100" id="sectionBeatsStepper" horizontalAlign="right" min="1" max="16" precision="0" tooltip="How many beats should this section last?"/>
+				<label text="Time signature:" width="100%" verticalAlign="center"/>
+				<number-stepper pos="1" step="1" width="70" id="timeSigNumStepper" horizontalAlign="right" min="1" max="16" precision="0" tooltip="Time signature numerator (beats per measure)"/>
+				<spacer width="6"/>
+				<number-stepper pos="1" step="1" width="70" id="timeSigDenStepper" horizontalAlign="right" min="1" max="16" precision="0" tooltip="Time signature denominator (note value that equals one beat, e.g., 4 for quarter notes, 8 for eighth notes)"/>
 			</hbox>
 			
 			<hbox width="100%">
@@ -292,9 +287,12 @@
 						<label text="Value 2:" width="55" verticalAlign="center"/>
 						<textfield width="100%" id="value2Field" horizontalAlign="right" text=""/>
 					</grid>
+					
+					<!-- dynamic per-value inputs will be inserted here when an event defines more values -->
+					<box id="eventValueContainer" width="100%" hidden="true"/>
 				</box>
 				<spacer height="5"/>
-				<textfield id="valueListField" width="100%" multiline="true" height="60" horizontalAlign="left" text="" hidden="true"/>
+				<textfield id="valueListField" width="100%" horizontalAlign="left" text="" hidden="true"/>
 				
 				<spacer height="5"/>
 				<rule/>

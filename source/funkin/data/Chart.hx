@@ -174,10 +174,12 @@ class Chart
 		
 		for (section in sectionsData)
 		{
-			final beats:Null<Float> = section.sectionBeats;
-			if (beats == null || Math.isNaN(beats))
+			var num:Null<Int> = section.timeSignatureNumerator;
+			var den:Null<Int> = section.timeSignatureDenominator;
+			if (num == null || den == null)
 			{
-				section.sectionBeats = 4;
+				section.timeSignatureNumerator = 4;
+				section.timeSignatureDenominator = 4;
 				if (Reflect.hasField(section, 'lengthInSteps')) Reflect.deleteField(section, 'lengthInSteps');
 			}
 		}

@@ -5,7 +5,8 @@ typedef SongSection =
 	var sectionNotes:Array<Dynamic>;
 	var mustHitSection:Bool;
 	
-	var ?sectionBeats:Int;
+	var ?timeSignatureNumerator:Int;
+	var ?timeSignatureDenominator:Int;
 	var gfSection:Bool;
 	var bpm:Float;
 	var changeBPM:Bool;

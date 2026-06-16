@@ -8,6 +8,7 @@ class EditorNote extends funkin.objects.note.Note
 	
 	public var eventName:String = '';
 	public var eventLength:Int = 0;
+	public var eventValues:Array<String> = [];
 	public var eventVal1:String = '';
 	public var eventVal2:String = '';
 	

@@ -200,7 +200,7 @@ class MusicBeatState extends FlxUIState
 	
 	function getBeatsOnSection():Float
 	{
-		return PlayState.SONG?.notes[curSection]?.sectionBeats ?? 4.0;
+		return Conductor.getSectionBeats(PlayState.SONG, curSection);
 	}
 	
 	@:access(funkin.states.FreeplayState)
