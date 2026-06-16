@@ -307,7 +307,7 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 			if (selectedEvents.length != 1) return;
 			
 			var evtDef = charter.eventStuff[songDialog.eventDropdown.selectedIndex];
-			var name = evtDef != null ? evtDef.name : charter.eventStuff[songDialog.eventDropdown.selectedIndex][0];
+			var name = evtDef != null ? evtDef.name : (cast(charter.eventStuff[songDialog.eventDropdown.selectedIndex], Dynamic).name ?? '');
 			var vals:Array<String> = [];
 			if (evtDef != null && evtDef.values != null) for (i in 0...evtDef.values.length)
 				vals.push('');
