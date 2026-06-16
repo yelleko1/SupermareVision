@@ -1220,14 +1220,18 @@ class PlayState extends MusicBeatState
 		var file:String = Paths.json('$songName/charts/events');
 		if (!FunkinAssets.exists(file)) file = Paths.json('$songName/data/events');
 		
-		inline function makeEv(time:Float, ev:String, v1:String, v2:String)
+		inline function makeEv(time:Float, ev:String, vals:Array<String>)
 		{
+			final v1:String = (vals.length > 0 ? (vals[0] ?? '') : '');
+			final v2:String = (vals.length > 1 ? (vals[1] ?? '') : '');
+			
 			final ev:EventNote =
 				{
 					strumTime: time + ClientPrefs.noteOffset,
 					event: ev,
 					value1: v1,
-					value2: v2
+					value2: v2,
+					values: vals
 				};
 				
 			var isCopy:Bool = false;
@@ -1253,7 +1257,12 @@ class PlayState extends MusicBeatState
 			{
 				for (i in 0...event[1].length)
 				{
-					makeEv(event[0], event[1][i][0], event[1][i][1], event[1][i][2]);
+					var arr = event[1][i];
+					var name = arr[0];
+					var vals:Array<String> = [];
+					for (j in 1...arr.length)
+						vals.push(Std.string(arr[j]));
+					makeEv(event[0], name, vals);
 				}
 			}
 		}
@@ -1261,7 +1270,14 @@ class PlayState extends MusicBeatState
 		for (event in SONG.events) // Event Notes
 		{
 			for (i in 0...event[1].length)
-				makeEv(event[0], event[1][i][0], event[1][i][1], event[1][i][2]);
+			{
+				var arr = event[1][i];
+				var name = arr[0];
+				var vals:Array<String> = [];
+				for (j in 1...arr.length)
+					vals.push(Std.string(arr[j]));
+				makeEv(event[0], name, vals);
+			}
 		}
 		
 		return (_parsedEvents = events);
@@ -2056,7 +2072,7 @@ class PlayState extends MusicBeatState
 		CoolUtil.cancelMusicFadeTween();
 		
 		ChartEditorState.song = SONG;
-		FlxG.switchState(FlxG.keys.pressed.SHIFT ? ChartEditorState.new : OLDChartEditorState.new);
+		FlxG.switchState(ChartEditorState.new);
 		chartingMode = true;
 		
 		if (automatedDiscord) DiscordClient.changePresence('Chart Editor');
@@ -2126,10 +2142,11 @@ class PlayState extends MusicBeatState
 			
 			if (Conductor.songPosition < leStrumTime) break;
 			
-			final value1:String = eventNotes[0].value1 ?? '';
-			final value2:String = eventNotes[0].value2 ?? '';
+			var vals:Array<String> = null;
+			if (eventNotes[0].values != null) vals = eventNotes[0].values;
+			else vals = [eventNotes[0].value1 ?? '', eventNotes[0].value2 ?? ''];
 			
-			triggerEventNote(eventNotes[0].event, value1, value2);
+			triggerEventNote(eventNotes[0].event, vals);
 			eventNotes.shift();
 		}
 	}
@@ -2159,8 +2176,28 @@ class PlayState extends MusicBeatState
 		callHUDFunc(hud -> hud.onCharacterChange());
 	}
 	
-	public function triggerEventNote(eventName:String, value1:String, value2:String):Void
+	public function triggerEventNote(eventName:String, value1OrValues:Dynamic = null, value2:Null<String> = null):Void
 	{
+		var values:Array<String> = [];
+		var value1:String = '';
+		var value2Str:String = '';
+		
+		if (Std.is(value1OrValues, Array<Dynamic>))
+		{
+			for (v in value1OrValues)
+				values.push(Std.string(v));
+			value1 = (values.length > 0 ? (values[0] ?? '') : '');
+			value2Str = (values.length > 1 ? (values[1] ?? '') : '');
+		}
+		else
+		{
+			value1 = (value1OrValues != null ? Std.string(value1OrValues) : '');
+			value2Str = (value2 != null ? value2 : '');
+			values = [value1, value2Str];
+		}
+		
+		var value2 = value2Str;
+		
 		switch (eventName)
 		{
 			case 'Hey!':

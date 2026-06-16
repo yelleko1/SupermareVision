@@ -32,6 +32,12 @@
 					<number-stepper pos="4" step="1" width="100%" id="keysStepper" min="1" max="9" precision="0"/>
 				</vbox>
 			</hbox>
+
+			<spacer height="5"/>
+			<grid width="100%" columns="2">
+				<label text="Time Signature:" width="120" verticalAlign="center"/>
+				<textfield width="100%" id="timeSignatureField" horizontalAlign="right" text="4/4"/>
+			</grid>
 			
 			<spacer height="5"/>
 			<rule/>
@@ -287,6 +293,8 @@
 						<textfield width="100%" id="value2Field" horizontalAlign="right" text=""/>
 					</grid>
 				</box>
+				<spacer height="5"/>
+				<textfield id="valueListField" width="100%" multiline="true" height="60" horizontalAlign="left" text="" hidden="true"/>
 				
 				<spacer height="5"/>
 				<rule/>

@@ -78,6 +78,9 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 			charter.gridZoom();
 		}
 		
+		songDialog.timeSignatureField.value = song.timeSignature == null ? '4/4' : song.timeSignature;
+		songDialog.timeSignatureField.onChange = function(event) song.timeSignature = songDialog.timeSignatureField.value;
+		
 		refreshCharacterDropdowns();
 		refreshStageDropdown();
 		refreshSkinDropdown();
@@ -267,7 +270,7 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 			
 			var eventID:Int = songDialog.eventDropdown.selectedIndex;
 			
-			selectedEvents[0][1][charter.curEventSelected][0] = charter.eventStuff[eventID][0];
+			selectedEvents[0][1][charter.curEventSelected][0] = charter.eventStuff[eventID].name;
 			
 			charter.updateGrid();
 			
@@ -303,7 +306,20 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 			
 			if (selectedEvents.length != 1) return;
 			
-			cast(selectedEvents[0][1], Array<Dynamic>).push([charter.eventStuff[songDialog.eventDropdown.selectedIndex][0], '', '']);
+			var evtDef = charter.eventStuff[songDialog.eventDropdown.selectedIndex];
+			var name = evtDef != null ? evtDef.name : charter.eventStuff[songDialog.eventDropdown.selectedIndex][0];
+			var vals:Array<String> = [];
+			if (evtDef != null && evtDef.values != null) for (i in 0...evtDef.values.length)
+				vals.push('');
+			if (vals.length == 0)
+			{
+				vals.push('');
+				vals.push('');
+			}
+			var newArr:Array<Dynamic> = [name];
+			for (v in vals)
+				newArr.push(v);
+			cast(selectedEvents[0][1], Array<Dynamic>).push(newArr);
 			charter.curEventSelected = Std.int(selectedEvents[0][1].length - 1);
 			
 			charter.updateGrid();
@@ -339,6 +355,25 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 			selectedEvents[0][1][charter.curEventSelected][2] = songDialog.value2Field.value;
 			charter.updateGrid();
 		}
+		
+		songDialog.valueListField.onChange = function(event) {
+			final selectedEvents = charter.getSelectedEvents();
+			if (selectedEvents.length != 1 || selectedEvents[0][1][charter.curEventSelected] == null) return;
+			
+			var text = songDialog.valueListField.value;
+			var parts = (text == null ? [] : text.split(','));
+			for (i in 0...parts.length)
+				parts[i] = parts[i].trim();
+				
+			var name = selectedEvents[0][1][charter.curEventSelected][0];
+			var newArr:Array<Dynamic> = [name];
+			for (p in parts)
+				newArr.push(p);
+				
+			// replace event entry
+			selectedEvents[0][1][charter.curEventSelected] = newArr;
+			charter.updateGrid();
+		}
 	}
 	
 	public function updateEventUI():Void
@@ -349,7 +384,7 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 		final singleSelected:Bool = (selectedEvents.length == 1);
 		
 		final selection:String = (singleSelected ? selectedEvents[0][1][charter.curEventSelected][0] : songDialog.eventDropdown.selectedItem?.id);
-		var eventThing:Array<String> = Lambda.find(charter.eventStuff, (e) -> e[0] == selection);
+		var eventThing:Dynamic = Lambda.find(charter.eventStuff, (e) -> e.name == selection);
 		var eventIndex:Int = charter.eventStuff.indexOf(eventThing);
 		
 		if (singleSelected)
@@ -388,7 +423,7 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 		
 		if (selectedEvents.length < 2)
 		{
-			songDialog.eventDescription.text = (eventThing == null ? 'No description.' : eventThing[1]);
+			songDialog.eventDescription.text = (eventThing == null ? 'No description.' : eventThing.description);
 			songDialog.eventDescription.hidden = false;
 			
 			songDialog.eventName.text = songDialog.eventDropdown.selectedItem?.text;
@@ -403,8 +438,22 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 	
 	function updateEventFields(event:Array<Dynamic>):Void
 	{
-		songDialog.value1Field.value = event[1];
-		songDialog.value2Field.value = event[2];
+		// Ensure there's at least two slots for legacy UI
+		songDialog.value1Field.value = (event.length > 1 ? Std.string(event[1]) : '');
+		songDialog.value2Field.value = (event.length > 2 ? Std.string(event[2]) : '');
+		
+		// Build CSV for additional values
+		var extra:Array<String> = [];
+		for (i in 1...event.length)
+			extra.push(Std.string(event[i]));
+		songDialog.valueListField.value = extra.join(', ');
+		
+		// Show/hide the multiline editor when more than 2 values expected
+		var selectedDef:Dynamic = Lambda.find(charter.eventStuff, (e) -> e.name == event[0]);
+		var expectsMore:Bool = (selectedDef != null && selectedDef.values != null && selectedDef.values.length > 2);
+		songDialog.valueListField.hidden = !expectsMore;
+		songDialog.value1Field.hidden = expectsMore;
+		songDialog.value2Field.hidden = expectsMore;
 	}
 	
 	function refreshCharacterDropdowns():Void

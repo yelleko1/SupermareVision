@@ -20,6 +20,7 @@ typedef Song =
 	var bpm:Float;
 	var needsVoices:Bool;
 	var ?trackSwap:Bool;
+	var ?timeSignature:String;
 	var speed:Float;
 	
 	var keys:Int;
