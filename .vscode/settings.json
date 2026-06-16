@@ -83,5 +83,11 @@
         }
     },
 
-    "json.format.keepLines": true
+    "json.format.keepLines": true,
+    "chat.tools.terminal.autoApprove": {
+        "/^cmd\\.exe /c \"echo PATH=%PATH% && where haxelib 2>nul \\|\\| echo NO_HAXELIB\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
 }
