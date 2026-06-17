@@ -1040,9 +1040,6 @@ class PlayState extends MusicBeatState
 			
 			new FlxTimer().start(countdownDelay, (t:FlxTimer) -> {
 				startedCountdown = true;
-				Conductor.songPosition = 0;
-				Conductor.songPosition -= Conductor.crotchet * 5;
-				scripts.call('onCountdownStarted', []);
 				
 				var swagCounter:Int = 0;
 				
@@ -1056,13 +1053,15 @@ class PlayState extends MusicBeatState
 				}
 				else if (skipCountdown)
 				{
+					Conductor.songPosition = 0;
 					setSongTime(0);
 					return;
 				}
 				
 				var countdownData:Array<Dynamic> = [];
-				var jsonPath:String = "content/game/countdown/config.json";
+				var jsonPath:String = Paths.mods(Mods.currentModDirectory + '/game/countdown/config.json');
 				var hasConfig:Bool = false;
+				trace("Checking for countdown config at: " + jsonPath);
 				
 				if (sys.FileSystem.exists(jsonPath))
 				{
@@ -1070,19 +1069,33 @@ class PlayState extends MusicBeatState
 					{
 						countdownData = haxe.Json.parse(sys.io.File.getContent(jsonPath));
 						hasConfig = true;
+						trace(countdownData);
 					}
 					catch (e:Dynamic)
 					{
-						FlxG.log.error("Failed parsing countdown json: " + e);
+						trace("Failed parsing countdown json: " + e);
 					}
 				}
 				
-				if (!hasConfig)
+				if (!hasConfig || countdownData.length == 0)
 				{
+					Conductor.songPosition = 0;
 					setSongTime(0);
 					startedCountdown = true;
 					return;
 				}
+				
+				var totalCountdownBeats:Int = 0;
+				var maxBeat:Int = 0;
+				for (step in countdownData)
+				{
+					var beat:Int = step.beat;
+					if (beat > maxBeat) maxBeat = beat;
+				}
+				totalCountdownBeats = maxBeat + 2;
+				
+				Conductor.songPosition = -(Conductor.crotchet * totalCountdownBeats);
+				scripts.call('onCountdownStarted', []);
 				
 				startTimer = new FlxTimer().start((Conductor.crotchet / 1000) / playbackRate, function(tmr:FlxTimer) {
 					handleBoppers(tmr.loopsLeft);
@@ -1102,20 +1115,120 @@ class PlayState extends MusicBeatState
 					if (currentStep != null && currentStep.directory != null)
 					{
 						var dir:String = currentStep.directory;
+						var imageLoaded:Bool = false;
 						
-						var absoluteImgPath:String = 'content/game/countdown/' + dir + '/image.png';
-						if (sys.FileSystem.exists(absoluteImgPath))
+						var possibleImagePaths:Array<String> = [
+							Paths.mods(Mods.currentModDirectory + '/game/countdown/' + dir + '/image.png'),
+							Paths.mods(Mods.currentModDirectory + '/game/countdown/' + dir + '/image'),
+							'game/countdown/' + dir + '/image.png',
+							'game/countdown/' + dir + '/image'
+						];
+						
+						for (imgPath in possibleImagePaths)
 						{
-							var countdownSprite = makeCountdownSprite(absoluteImgPath);
-							insert(members.indexOf(notes), countdownSprite);
+							try
+							{
+								if (FunkinAssets.exists(imgPath) || sys.FileSystem.exists(imgPath))
+								{
+									var actualPath = Paths.getPath('game/countdown/' + dir + '/image.png', null, true);
+									
+									if (!FunkinAssets.exists(actualPath) && !sys.FileSystem.exists(actualPath))
+									{
+										actualPath = Paths.mods(Mods.currentModDirectory + '/game/countdown/' + dir + '/image.png');
+									}
+									
+									if (sys.FileSystem.exists(actualPath))
+									{
+										var countdownSprite = makeCountdownSprite(actualPath);
+										insert(members.indexOf(notes), countdownSprite);
+										imageLoaded = true;
+										break;
+									}
+								}
+							}
+							catch (e:Dynamic) {}
+						}
+						
+						if (!imageLoaded)
+						{
+							try
+							{
+								var defaultPath = Paths.COUNTDOWN_PREFIX + dir;
+								if (FunkinAssets.exists(Paths.getPath('images/' + defaultPath + '.png', null, true)))
+								{
+									var countdownSprite = new FlxSprite();
+									countdownSprite.loadGraphic(Paths.image(defaultPath));
+									countdownSprite.scrollFactor.set();
+									countdownSprite.updateHitbox();
+									countdownSprite.screenCenter();
+									countdownSprite.antialiasing = ClientPrefs.globalAntialiasing;
+									countdownSprite.cameras = [camHUD];
+									
+									FlxTween.tween(countdownSprite, {alpha: 0}, Conductor.crotchet / 1000 / playbackRate,
+										{
+											ease: FlxEase.cubeInOut,
+											onComplete: function(twn:FlxTween) {
+												remove(countdownSprite, true);
+												countdownSprite.destroy();
+											}
+										});
+									insert(members.indexOf(notes), countdownSprite);
+									imageLoaded = true;
+								}
+							}
+							catch (e:Dynamic) {}
 						}
 						
 						if (countdownSounds)
 						{
-							var absoluteSndPath:String = 'content/game/countdown/' + dir + '/audio.ogg';
-							if (sys.FileSystem.exists(absoluteSndPath))
+							var soundPlayed:Bool = false;
+							
+							var possibleAudioPaths:Array<String> = [
+								Paths.mods(Mods.currentModDirectory + '/game/countdown/' + dir + '/audio.ogg'),
+								Paths.mods(Mods.currentModDirectory + '/game/countdown/' + dir + '/audio'),
+								'/game/countdown/' + dir + '/audio.ogg'
+							];
+							
+							for (sndPath in possibleAudioPaths)
 							{
-								FlxG.sound.play(openfl.media.Sound.fromFile(absoluteSndPath), 0.6);
+								try
+								{
+									if (sys.FileSystem.exists(sndPath))
+									{
+										FlxG.sound.play(openfl.media.Sound.fromFile(sndPath), 0.6);
+										soundPlayed = true;
+										break;
+									}
+								}
+								catch (e:Dynamic) {}
+							}
+							
+							if (!soundPlayed)
+							{
+								try
+								{
+									var soundName = 'countdown/' + dir;
+									if (Paths.fileExists('sounds/' + soundName + '.ogg'))
+									{
+										FlxG.sound.play(Paths.sound(soundName), 0.6);
+										soundPlayed = true;
+									}
+								}
+								catch (e:Dynamic) {}
+							}
+							
+							if (!soundPlayed)
+							{
+								try
+								{
+									var modSoundPath = Paths.mods(Mods.currentModDirectory + '/game/countdown/' + dir + '/audio.ogg');
+									if (sys.FileSystem.exists(modSoundPath))
+									{
+										FlxG.sound.play(openfl.media.Sound.fromFile(modSoundPath), 0.6);
+										soundPlayed = true;
+									}
+								}
+								catch (e:Dynamic) {}
 							}
 						}
 					}
@@ -1123,7 +1236,13 @@ class PlayState extends MusicBeatState
 					scripts.call('onCountdownTick', [swagCounter]);
 					
 					swagCounter += 1;
-				}, 5);
+					
+					if (swagCounter >= totalCountdownBeats)
+					{
+						Conductor.songPosition = 0;
+						startSong();
+					}
+				}, totalCountdownBeats);
 			});
 		}
 	}
