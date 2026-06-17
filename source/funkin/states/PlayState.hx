@@ -1022,10 +1022,6 @@ class PlayState extends MusicBeatState
 	var startTimer:FlxTimer = null;
 	var finishTimer:FlxTimer = null;
 	
-	public var countdownReady:Null<FlxSprite> = null;
-	public var countdownSet:Null<FlxSprite> = null;
-	public var countdownGo:Null<FlxSprite> = null;
-	
 	public function startCountdown():Void
 	{
 		if (startedCountdown)
@@ -1040,7 +1036,6 @@ class PlayState extends MusicBeatState
 		
 		if (ret != ScriptConstants.STOP_FUNC)
 		{
-			// if its not 0 we can assume this was manually triggered
 			if (!genNotesBeforeCountdown) generatePlayfields();
 			
 			new FlxTimer().start(countdownDelay, (t:FlxTimer) -> {
@@ -1065,34 +1060,64 @@ class PlayState extends MusicBeatState
 					return;
 				}
 				
+				var countdownData:Array<Dynamic> = [];
+				var jsonPath:String = "content/game/countdown/config.json";
+				var hasConfig:Bool = false;
+				
+				if (sys.FileSystem.exists(jsonPath))
+				{
+					try
+					{
+						countdownData = haxe.Json.parse(sys.io.File.getContent(jsonPath));
+						hasConfig = true;
+					}
+					catch (e:Dynamic)
+					{
+						FlxG.log.error("Failed parsing countdown json: " + e);
+					}
+				}
+				
+				if (!hasConfig)
+				{
+					setSongTime(0);
+					startedCountdown = true;
+					return;
+				}
+				
 				startTimer = new FlxTimer().start((Conductor.crotchet / 1000) / playbackRate, function(tmr:FlxTimer) {
 					handleBoppers(tmr.loopsLeft);
 					
-					var introAlts:Array<String> = ['ready', 'set', 'go'];
 					var antialias:Bool = ClientPrefs.globalAntialiasing;
 					
-					switch (swagCounter)
+					var currentStep:Dynamic = null;
+					for (step in countdownData)
 					{
-						case 0:
-							if (countdownSounds) FlxG.sound.play(Paths.sound('intro3' + introSoundsSuffix), 0.6);
-						case 1:
-							countdownReady = makeCountdownSprite(introAlts[0]);
-							insert(members.indexOf(notes), countdownReady);
-							
-							if (countdownSounds) FlxG.sound.play(Paths.sound('intro2' + introSoundsSuffix), 0.6);
-						case 2:
-							countdownSet = makeCountdownSprite(introAlts[1]);
-							insert(members.indexOf(notes), countdownSet);
-							
-							if (countdownSounds) FlxG.sound.play(Paths.sound('intro1' + introSoundsSuffix), 0.6);
-						case 3:
-							countdownGo = makeCountdownSprite(introAlts[2]);
-							
-							insert(members.indexOf(notes), countdownGo);
-							
-							if (countdownSounds) FlxG.sound.play(Paths.sound('introGo' + introSoundsSuffix), 0.6);
-							
-						case 4:
+						if (step.beat == swagCounter)
+						{
+							currentStep = step;
+							break;
+						}
+					}
+					
+					if (currentStep != null && currentStep.directory != null)
+					{
+						var dir:String = currentStep.directory;
+						
+						var absoluteImgPath:String = 'content/game/countdown/' + dir + '/image.png';
+						if (sys.FileSystem.exists(absoluteImgPath))
+						{
+							var countdownSprite = makeCountdownSprite(absoluteImgPath);
+							insert(members.indexOf(notes), countdownSprite);
+						}
+						
+						if (countdownSounds)
+						{
+							var absoluteSndPath:String = 'content/game/countdown/' + dir + '/audio.ogg';
+							if (sys.FileSystem.exists(absoluteSndPath))
+							{
+								FlxG.sound.play(openfl.media.Sound.fromFile(absoluteSndPath), 0.6);
+							}
+						}
 					}
 					
 					scripts.call('onCountdownTick', [swagCounter]);
@@ -1105,9 +1130,16 @@ class PlayState extends MusicBeatState
 	
 	function makeCountdownSprite(path:String):FlxSprite
 	{
-		final pref = countdownPrefix != Paths.COUNTDOWN_PREFIX ? countdownPrefix : Paths.COUNTDOWN_PREFIX;
-		
-		final spr = new FlxSprite().loadGraphic(Paths.image(pref + path));
+		final spr = new FlxSprite();
+		if (sys.FileSystem.exists(path))
+		{
+			spr.loadGraphic(openfl.display.BitmapData.fromFile(path));
+		}
+		else
+		{
+			final pref = countdownPrefix != Paths.COUNTDOWN_PREFIX ? countdownPrefix : Paths.COUNTDOWN_PREFIX;
+			spr.loadGraphic(Paths.image(pref + path));
+		}
 		spr.scrollFactor.set();
 		spr.updateHitbox();
 		
