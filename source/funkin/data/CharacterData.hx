@@ -66,6 +66,7 @@ class CharacterParser
 		data.camera_position ??= baseInfo.camera_position;
 		data.animations ??= baseInfo.animations;
 		data.scale ??= baseInfo.scale;
+		data.countdown ??= baseInfo.countdown;
 		
 		return cast data;
 	}
@@ -340,7 +341,8 @@ class CharacterParser
 			position: [0, 0],
 			camera_position: [0, 0],
 			animations: [],
-			scale: 1
+			scale: 1,
+			countdown: "default"
 		};
 	}
 	
@@ -497,6 +499,8 @@ typedef CharacterInfo =
 	var ?gameover_loop_sound:String;
 	
 	var ?gameover_confirm_sound:String;
+	
+	var ?countdown:String;
 }
 
 /**

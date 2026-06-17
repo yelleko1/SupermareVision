@@ -8,6 +8,7 @@ import haxe.ui.components.Stepper;
 import haxe.Json;
 import haxe.ui.components.popups.ColorPickerPopup;
 import haxe.ui.components.CheckBox;
+import haxe.ui.components.TextField;
 import haxe.ui.components.Button;
 import haxe.ui.components.Slider;
 import haxe.ui.backend.flixel.UIState;
@@ -510,6 +511,21 @@ class CharacterEditorState extends UIState // MUST EXTEND UI STATE needed for ac
 			var val:String = uiElements.characterDialogBox.gameoverLoopDeathSoundTextField.value;
 			
 			character.gameoverLoopDeathSound = val.trim().length == 0 ? null : val.trim();
+		}
+		
+		uiElements.characterDialogBox.countdownTextField.onChange = (ui) -> {
+			var val:String = uiElements.characterDialogBox.countdownTextField.value;
+			character.countdown = val.trim().length == 0 ? null : val.trim();
+		}
+		
+		uiElements.characterDialogBox.playCountdownButton.onClick = (ui) -> {
+			if (character.countdown == null || character.countdown.length == 0)
+			{
+				ToolKitUtils.makeNotification('Countdown', 'No countdown specified.', Warning);
+				return;
+			}
+			
+			playCharacterCountdown(character.countdown);
 		}
 		
 		uiElements.characterDialogBox.healthIconTextField.onChange = (ui) -> {
@@ -1167,6 +1183,9 @@ class CharacterEditorState extends UIState // MUST EXTEND UI STATE needed for ac
 		uiElements.characterDialogBox.gameoverInitialDeathSoundTextField.value = character.gameoverInitialDeathSound ?? '';
 		uiElements.characterDialogBox.gameoverLoopDeathSoundTextField.value = character.gameoverLoopDeathSound ?? '';
 		
+		// Countdown
+		uiElements.characterDialogBox.countdownTextField.value = character.countdown ?? '';
+		
 		// animations tab
 		uiElements.characterDialogBox.animationsDropdown.selectItemBy((item) -> return item.id == character.getAnimName());
 		
@@ -1366,6 +1385,189 @@ class CharacterEditorState extends UIState // MUST EXTEND UI STATE needed for ac
 		midPoint.put();
 	}
 	
+	function playCharacterCountdown(countdownName:String):Void
+	{
+		var countdownData:Array<Dynamic> = [];
+		var hasConfig:Bool = false;
+		
+		var jsonPath:String = Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/config.json');
+		
+		if (sys.FileSystem.exists(jsonPath))
+		{
+			try
+			{
+				countdownData = haxe.Json.parse(sys.io.File.getContent(jsonPath));
+				hasConfig = true;
+			}
+			catch (e:Dynamic)
+			{
+				trace("Failed parsing countdown json: " + e);
+			}
+		}
+		
+		if (!hasConfig || countdownData.length == 0)
+		{
+			var defaultJsonPath:String = Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/config.json');
+			if (sys.FileSystem.exists(defaultJsonPath))
+			{
+				try
+				{
+					countdownData = haxe.Json.parse(sys.io.File.getContent(defaultJsonPath));
+					hasConfig = true;
+				}
+				catch (e:Dynamic)
+				{
+					trace("Failed parsing default countdown json: " + e);
+				}
+			}
+		}
+		
+		if (!hasConfig || countdownData.length == 0)
+		{
+			ToolKitUtils.makeNotification('Countdown', 'Could not find countdown config for "' + countdownName + '"', Error);
+			return;
+		}
+		
+		var totalCountdownBeats:Int = 0;
+		var maxBeat:Int = 0;
+		for (step in countdownData)
+		{
+			var beat:Int = step.beat;
+			if (beat > maxBeat) maxBeat = beat;
+		}
+		totalCountdownBeats = maxBeat + 2;
+		
+		var swagCounter:Int = 0;
+		var countdownSprites:Array<FlxSprite> = [];
+		
+		var timer = new FlxTimer().start(Conductor.crotchet / 1000, function(tmr:FlxTimer) {
+			var currentStep:Dynamic = null;
+			for (step in countdownData)
+			{
+				if (step.beat == swagCounter)
+				{
+					currentStep = step;
+					break;
+				}
+			}
+			
+			if (currentStep != null && currentStep.directory != null)
+			{
+				var dir:String = currentStep.directory;
+				var imageLoaded:Bool = false;
+				
+				var possibleImagePaths:Array<String> = [
+					Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/' + dir + '/image.png'),
+					Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/' + dir + '/image.png')
+				];
+				
+				for (imgPath in possibleImagePaths)
+				{
+					try
+					{
+						if (sys.FileSystem.exists(imgPath))
+						{
+							var countdownSprite = new FlxSprite();
+							countdownSprite.loadGraphic(openfl.display.BitmapData.fromFile(imgPath));
+							countdownSprite.scrollFactor.set();
+							countdownSprite.updateHitbox();
+							countdownSprite.screenCenter();
+							countdownSprite.antialiasing = ClientPrefs.globalAntialiasing;
+							countdownSprite.cameras = [camHUD];
+							
+							countdownSprite.alpha = 1;
+							
+							FlxTween.tween(countdownSprite, {alpha: 0}, Conductor.crotchet / 1000,
+								{
+									ease: FlxEase.cubeInOut,
+									onComplete: function(twn:FlxTween) {
+										remove(countdownSprite, true);
+										countdownSprite.destroy();
+									}
+								});
+								
+							add(countdownSprite);
+							countdownSprites.push(countdownSprite);
+							imageLoaded = true;
+							break;
+						}
+					}
+					catch (e:Dynamic) {}
+				}
+				
+				if (!imageLoaded)
+				{
+					try
+					{
+						var defaultPath = Paths.COUNTDOWN_PREFIX + dir;
+						if (FunkinAssets.exists(Paths.getPath('images/' + defaultPath + '.png', null, true)))
+						{
+							var countdownSprite = new FlxSprite();
+							countdownSprite.loadGraphic(Paths.image(defaultPath));
+							countdownSprite.scrollFactor.set();
+							countdownSprite.updateHitbox();
+							countdownSprite.screenCenter();
+							countdownSprite.antialiasing = ClientPrefs.globalAntialiasing;
+							countdownSprite.cameras = [camHUD];
+							
+							FlxTween.tween(countdownSprite, {alpha: 0}, Conductor.crotchet / 1000,
+								{
+									ease: FlxEase.cubeInOut,
+									onComplete: function(twn:FlxTween) {
+										remove(countdownSprite, true);
+										countdownSprite.destroy();
+									}
+								});
+								
+							add(countdownSprite);
+							countdownSprites.push(countdownSprite);
+							imageLoaded = true;
+						}
+					}
+					catch (e:Dynamic) {}
+				}
+				
+				try
+				{
+					var soundPath = Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/' + dir + '/audio.ogg');
+					if (!sys.FileSystem.exists(soundPath))
+					{
+						soundPath = Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/' + dir + '/audio.ogg');
+					}
+					
+					if (sys.FileSystem.exists(soundPath))
+					{
+						FlxG.sound.play(openfl.media.Sound.fromFile(soundPath), 0.6);
+					}
+					else
+					{
+						var soundName = 'countdown/' + dir;
+						if (Paths.fileExists('sounds/' + soundName + '.ogg'))
+						{
+							FlxG.sound.play(Paths.sound(soundName), 0.6);
+						}
+					}
+				}
+				catch (e:Dynamic) {}
+			}
+			
+			swagCounter += 1;
+			
+			if (swagCounter >= totalCountdownBeats)
+			{
+				for (sprite in countdownSprites)
+				{
+					if (sprite != null && sprite.exists)
+					{
+						remove(sprite, true);
+						sprite.destroy();
+					}
+				}
+				countdownSprites.resize(0);
+			}
+		}, totalCountdownBeats);
+	}
+	
 	function spawnGhost()
 	{
 		if (character == null) return;
@@ -1448,6 +1650,7 @@ class CharacterEditorState extends UIState // MUST EXTEND UI STATE needed for ac
 				"scalableOffsets": character.scalableOffsets,
 				"dance_every": character.danceEveryNumBeats,
 				"_editor_isPlayer": character.isPlayer,
+				"countdown": character.countdown,
 				
 				"gameover_character": character.gameoverCharacter,
 				"gameover_intial_sound": character.gameoverInitialDeathSound,
@@ -1557,6 +1760,7 @@ class CharacterEditorState extends UIState // MUST EXTEND UI STATE needed for ac
 			sing_duration: 6.1,
 			scale: 1,
 			dance_every: 2,
+			countdown: "default",
 			scalableOffsets: true
 		};
 }

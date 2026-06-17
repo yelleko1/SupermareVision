@@ -119,6 +119,11 @@ class Character extends Bopper
 	 */
 	public var lastHitTime:Float = -1000;
 	
+	/**
+	 * The countdown style to use for the character.
+	 */
+	public var countdown:Null<String> = null;
+	
 	// Used on Character Editor
 	public var isPlayerInEditor:Null<Bool> = null;
 	public var imageFile:String = '';
@@ -223,6 +228,8 @@ class Character extends Bopper
 		{
 			this.healthColour = json.healthbar_colour;
 		}
+		
+		this.countdown = json.countdown;
 		
 		this.animations = json.animations;
 		if (animations != null && animations.length > 0)
