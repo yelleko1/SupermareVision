@@ -4,6 +4,10 @@ import funkin.backend.math.Vector3;
 
 import flixel.FlxSprite;
 import flixel.math.FlxPoint;
+import flixel.graphics.frames.FlxAtlasFrames;
+import flixel.graphics.FlxGraphic;
+
+import openfl.display.BitmapData;
 
 import funkin.objects.*;
 import funkin.game.shaders.RGBShader;
@@ -32,8 +36,6 @@ class StrumNote extends FunkinSprite implements funkin.game.modchart.IModNote
 		return parent == null ? Note.swagWidth : parent.swagWidth;
 	}
 	
-	// public var zIndex:Float = 0;
-	// public var desiredZIndex:Float = 0;
 	public var z:Float = 0;
 	
 	override function set_alpha(val:Float)
@@ -66,9 +68,12 @@ class StrumNote extends FunkinSprite implements funkin.game.modchart.IModNote
 		this.player = player;
 		super(x, y);
 		
-		skin = NoteUtil.getSkinFromID(parent?.player ?? 0);
+		if (skin == null)
+		{
+			skin = NoteUtil.getSkinFromID(parent?.player ?? 0);
+		}
 		
-		texture = skin.noteTexture; // Load texture and anims
+		texture = skin.noteTexture;
 		
 		scrollFactor.set();
 		
@@ -109,9 +114,79 @@ class StrumNote extends FunkinSprite implements funkin.game.modchart.IModNote
 	{
 		var lastAnim:String = null;
 		if (animation.curAnim != null) lastAnim = animation.curAnim.name;
-		var br:String = texture;
 		
-		frames = Paths.getAtlasFrames(br);
+		if (skin != null && skin.noteAtlas != null)
+		{
+			frames = skin.noteAtlas;
+		}
+		else
+		{
+			var _skin:String = texture;
+			if (_skin == null || _skin.length < 1) _skin = 'notes';
+			
+			var fullPath:String = '';
+			var found:Bool = false;
+			
+			var possiblePaths:Array<String> = [Paths.mods(Mods.currentModDirectory + '/game/noteskins/' + (skin?.name ?? 'default') + '/' + _skin + '/image.png'),
+				Paths.mods(Mods.currentModDirectory + '/game/noteskins/' + (skin?.name ?? 'default') + '/' + _skin + '.png'),
+				Paths.mods(Mods.currentModDirectory + '/game/noteskins/default/' + _skin + '/image.png'),
+				Paths.mods(Mods.currentModDirectory + '/game/noteskins/default/' + _skin + '.png'),
+				'game/noteskins/'
+				+ (skin?.name ?? 'default')
+				+ '/'
+				+ _skin
+				+ '/image.png',
+				'game/noteskins/default/'
+				+ _skin
+				+ '/image.png'];
+				
+			#if MODS_ALLOWED
+			for (mod in Mods.globalMods)
+			{
+				possiblePaths.push(Paths.mods(mod + '/game/noteskins/' + (skin?.name ?? 'default') + '/' + _skin + '/image.png'));
+				possiblePaths.push(Paths.mods(mod + '/game/noteskins/' + (skin?.name ?? 'default') + '/' + _skin + '.png'));
+				possiblePaths.push(Paths.mods(mod + '/game/noteskins/default/' + _skin + '/image.png'));
+				possiblePaths.push(Paths.mods(mod + '/game/noteskins/default/' + _skin + '.png'));
+			}
+			#end
+			
+			for (path in possiblePaths)
+			{
+				if (sys.FileSystem.exists(path))
+				{
+					fullPath = path;
+					found = true;
+					break;
+				}
+			}
+			
+			if (found)
+			{
+				var bmp = BitmapData.fromFile(fullPath);
+				var graphic = FlxGraphic.fromBitmapData(bmp);
+				
+				var xmlPath = fullPath.substr(0, fullPath.length - 4) + '.xml';
+				if (!sys.FileSystem.exists(xmlPath))
+				{
+					var dir = fullPath.substr(0, fullPath.lastIndexOf('/') + 1);
+					xmlPath = dir + 'sheet.xml';
+				}
+				
+				if (sys.FileSystem.exists(xmlPath))
+				{
+					var xml = Xml.parse(sys.io.File.getContent(xmlPath));
+					frames = FlxAtlasFrames.fromSparrow(graphic, xml);
+				}
+				else
+				{
+					frames = Paths.getAtlasFrames(_skin);
+				}
+			}
+			else
+			{
+				frames = Paths.getAtlasFrames(_skin);
+			}
+		}
 		
 		setGraphicSize(Std.int(width * skin.receptorScale));
 		

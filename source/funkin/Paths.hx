@@ -109,9 +109,11 @@ class Paths
 	
 	public static inline function noteskin(key:String, ?parentFolder:String, checkMods:Bool = true):String
 	{
-		var path = getPath('data/noteskins/$key.json', parentFolder, checkMods);
-		if (!FunkinAssets.exists(path, TEXT)) path = getPath('noteskins/$key.json', parentFolder, checkMods);
-		
+		var path = getPath('game/noteskins/$key/config.json', parentFolder, checkMods);
+		if (!FunkinAssets.exists(path, TEXT))
+		{
+			path = getPath('data/noteskins/$key.json', parentFolder, checkMods);
+		}
 		return path;
 	}
 	

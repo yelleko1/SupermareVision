@@ -560,7 +560,7 @@ class PlayField extends FlxTypedContainer<StrumNote>
 				final colors = note.rgbGraphics;
 				
 				var splash:NoteSplash = grpNoteSplashes.recycle(NoteSplash);
-				splash.setupNoteSplash(strum, note, skin, colors, this);
+				splash.setupSplash(strum, note, colors, this);
 				grpNoteSplashes.add(splash);
 				
 				PlayState.instance.scripts.call('onSpawnNoteSplash', [splash, note]);

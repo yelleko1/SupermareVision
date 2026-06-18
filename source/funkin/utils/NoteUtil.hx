@@ -8,8 +8,6 @@ import funkin.data.NoteSkin.ColorList;
 import funkin.game.shaders.*;
 import funkin.game.shaders.RGBShader;
 
-// should be rewritten ngl
-// i agree its so ugly please
 class NoteUtil
 {
 	public static var keys:Int = DEFAULT_KEYS;
@@ -18,26 +16,20 @@ class NoteUtil
 	
 	public static function getSkinFromID(id:Int = 0)
 	{
-		// check list of skins and return the one with the specified id
 		for (i in noteskins)
 		{
 			if (i.ID == id) return i;
 		}
 		
-		// if no skin with that id exists, return the first noteskin
 		final skin = noteskins[0];
 		
-		// if all the skins are null, create a new default noteskin
 		return (skin == null ? (new NoteSkin('default', 4, 0)) : skin);
 	}
 	
-	// quant stuff
 	public static final quants:Array<Int> = [
-		4, // quarter note
-		8, // eight
-		12, // etc
-		16, 20, 24, 32, 48, 64, 96, 192];
-		
+		4, 8, 12, 16, 20, 24, 32, 48, 64, 96, 192
+	];
+	
 	public static function getQuant(beat:Float)
 	{
 		var row = Conductor.beatToNoteRow(beat);
@@ -48,17 +40,14 @@ class NoteUtil
 				return data;
 			}
 		}
-		return quants[quants.length - 1]; // invalid
+		return quants[quants.length - 1];
 	}
 	
-	// constants
 	public static final DEFAULT_KEYS:Int = 4;
 	
-	public static final DEFAULT_TEXTURE:String = 'UI/notes/NOTE_assets';
-	
-	public static final DEFAULT_SPLASH_TEXTURE:String = 'UI/notes/noteSplashes';
-	
-	public static final DEFAULT_SUSTAIN_SPLASH_TEXTURE:String = 'UI/notes/sustainHold';
+	public static final DEFAULT_TEXTURE:String = 'notes';
+	public static final DEFAULT_SPLASH_TEXTURE:String = 'splashes';
+	public static final DEFAULT_SUSTAIN_SPLASH_TEXTURE:String = 'sustains';
 	
 	public static final DEFAULT_NOTE_ANIMATIONS:Array<Array<Animation>> = [
 		[
@@ -78,11 +67,10 @@ class NoteUtil
 			},
 			{
 				anim: 'holdend',
-				xmlName: 'pruple end hold',
+				xmlName: 'purple hold end',
 				offsets: [0, 0],
 				looping: true,
-				fps: 24
-			}
+				fps: 24}
 		],
 		[
 			{
@@ -104,8 +92,7 @@ class NoteUtil
 				xmlName: "blue hold end",
 				offsets: [0, 0],
 				looping: true,
-				fps: 24
-			}
+				fps: 24}
 		],
 		[
 			{
@@ -127,8 +114,7 @@ class NoteUtil
 				xmlName: "green hold end",
 				offsets: [0, 0],
 				looping: true,
-				fps: 24
-			}
+				fps: 24}
 		],
 		[
 			{
@@ -150,10 +136,10 @@ class NoteUtil
 				xmlName: "red hold end",
 				offsets: [0, 0],
 				looping: true,
-				fps: 24
-			}
+				fps: 24}
 		]
 	];
+	
 	public static final DEFAULT_RECEPTOR_ANIMATIONS:Array<Array<Animation>> = [
 		[
 			{
@@ -175,8 +161,7 @@ class NoteUtil
 				xmlName: "left confirm",
 				offsets: [0, 0],
 				looping: false,
-				fps: 24
-			}
+				fps: 24}
 		],
 		[
 			{
@@ -198,8 +183,7 @@ class NoteUtil
 				xmlName: "down confirm",
 				offsets: [0, 0],
 				looping: false,
-				fps: 24
-			}
+				fps: 24}
 		],
 		[
 			{
@@ -221,8 +205,7 @@ class NoteUtil
 				xmlName: "up confirm",
 				offsets: [0, 0],
 				looping: false,
-				fps: 24
-			}
+				fps: 24}
 		],
 		[
 			{
@@ -244,8 +227,7 @@ class NoteUtil
 				xmlName: "right confirm",
 				offsets: [0, 0],
 				looping: false,
-				fps: 24
-			}
+				fps: 24}
 		]
 	];
 	
@@ -275,8 +257,7 @@ class NoteUtil
 				anim: "end",
 				xmlName: "end",
 				offsets: [50, 60],
-				looping: false
-			}
+				looping: false}
 		],
 		[
 			{
@@ -296,8 +277,7 @@ class NoteUtil
 				anim: "end",
 				xmlName: "end",
 				offsets: [50, 60],
-				looping: false
-			}
+				looping: false}
 		],
 		[
 			{
@@ -317,8 +297,7 @@ class NoteUtil
 				anim: "end",
 				xmlName: "end",
 				offsets: [50, 60],
-				looping: false
-			}
+				looping: false}
 		],
 		[
 			{
@@ -338,65 +317,28 @@ class NoteUtil
 				anim: "end",
 				xmlName: "end",
 				offsets: [50, 60],
-				looping: false
-			}
+				looping: false}
 		]
 	];
 	
 	public static final fallbackReceptorAnims:Array<Animation> = [
-		{
-			anim: 'static',
-			xmlName: "placeholder",
-			offsets: [0, 0]
-		},
-		{
-			anim: "pressed",
-			xmlName: "placeholder",
-			offsets: [0, 0]
-		},
-		{
-			anim: "confirm",
-			xmlName: "placeholder",
-			offsets: [0, 0]
-		}
+		{anim: 'static', xmlName: "placeholder", offsets: [0, 0]},
+		{anim: "pressed", xmlName: "placeholder", offsets: [0, 0]},
+		{anim: "confirm", xmlName: "placeholder", offsets: [0, 0]}
 	];
 	
 	public static final fallbackNoteAnims:Array<Animation> = [
-		{
-			anim: "scroll",
-			xmlName: "purple",
-			offsets: [0, 0]
-		},
-		{
-			anim: "hold",
-			xmlName: "purple hold piece",
-			offsets: [0, 0]
-		},
-		{
-			anim: 'holdend',
-			xmlName: 'pruple end hold',
-			offsets: [0, 0]
-		}
+		{anim: "scroll", xmlName: "purple", offsets: [0, 0]},
+		{anim: "hold", xmlName: "purple hold piece", offsets: [0, 0]},
+		{anim: 'holdend', xmlName: 'purple hold end', offsets: [0, 0]}
 	];
 	
 	public static function fallbackNote(id:Int)
 	{
 		var anim:Array<Animation> = [
-			{
-				anim: "scroll",
-				xmlName: "purple",
-				offsets: [0, 0]
-			},
-			{
-				anim: "hold",
-				xmlName: "purple hold piece",
-				offsets: [0, 0]
-			},
-			{
-				anim: 'holdend',
-				xmlName: 'pruple end hold',
-				offsets: [0, 0]
-			}
+			{anim: "scroll", xmlName: "purple", offsets: [0, 0]},
+			{anim: "hold", xmlName: "purple hold piece", offsets: [0, 0]},
+			{anim: 'holdend', xmlName: 'purple hold end', offsets: [0, 0]}
 		];
 		
 		for (i in anim)
@@ -422,17 +364,17 @@ class NoteUtil
 	];
 	
 	public static var quantDefaultColors:Array<ColorList> = [
-		{r: 0xFFE51919, g: 0xFFFFFF, b: 0xFF5B0A30}, // 4th
-		{r: 0xFF193BE5, g: 0xFFFFFF, b: 0xFF0A3B5B}, // 8th
-		{r: 0xFFA119E5, g: 0xFFFFFF, b: 0xFF1D0A5B}, // 12th
-		{r: 0xFF26D93E, g: 0xFFFFFF, b: 0xFF24560F}, // 16th
-		{r: 0xFF0000B2, g: 0xFFFFFF, b: 0xFF002247}, // 20th
-		{r: 0xFFA119E5, g: 0xFFFFFF, b: 0xFF1D0A5B}, // 24th
-		{r: 0xFFE5C319, g: 0xFFFFFF, b: 0xFF5B2A0A}, // 32nd
-		{r: 0xFFA119E5, g: 0xFFFFFF, b: 0xFF1D0A5B}, // 48th
-		{r: 0xFF13ECA4, g: 0xFFFFFF, b: 0xFF085D18}, // 64th
-		{r: 0xFF3A3A6C, g: 0xFFFFFF, b: 0xFF17202B}, // 96th
-		{r: 0xFF3A3A6C, g: 0xFFFFFF, b: 0xFF17202B} // 192nd
+		{r: 0xFFE51919, g: 0xFFFFFF, b: 0xFF5B0A30},
+		{r: 0xFF193BE5, g: 0xFFFFFF, b: 0xFF0A3B5B},
+		{r: 0xFFA119E5, g: 0xFFFFFF, b: 0xFF1D0A5B},
+		{r: 0xFF26D93E, g: 0xFFFFFF, b: 0xFF24560F},
+		{r: 0xFF0000B2, g: 0xFFFFFF, b: 0xFF002247},
+		{r: 0xFFA119E5, g: 0xFFFFFF, b: 0xFF1D0A5B},
+		{r: 0xFFE5C319, g: 0xFFFFFF, b: 0xFF5B2A0A},
+		{r: 0xFFA119E5, g: 0xFFFFFF, b: 0xFF1D0A5B},
+		{r: 0xFF13ECA4, g: 0xFFFFFF, b: 0xFF085D18},
+		{r: 0xFF3A3A6C, g: 0xFFFFFF, b: 0xFF17202B},
+		{r: 0xFF3A3A6C, g: 0xFFFFFF, b: 0xFF17202B}
 	];
 	
 	public static function getCurColors(id:Int = 0, quant:Int = 0, player:Int = 0)
@@ -450,8 +392,6 @@ class NoteUtil
 	public static function colorToArray(color:ColorList):Array<FlxColor>
 	{
 		final _color = color ?? defaultColors[0];
-		
-		var arr:Array<FlxColor> = [_color.r, _color.g, _color.b];
-		return arr;
+		return [_color.r, _color.g, _color.b];
 	}
 }

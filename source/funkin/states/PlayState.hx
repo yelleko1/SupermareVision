@@ -647,8 +647,6 @@ class PlayState extends MusicBeatState
 		Conductor.mapBPMChanges(SONG);
 		Conductor.bpm = SONG.bpm;
 		
-		arrowSkins = SONG.arrowSkins;
-		
 		// set up rpc stuff
 		rpcDifficulty = '(' + Difficulty.getCurrentDifficultyString() + ')';
 		rpcDescription = isStoryMode == true ? 'Story Mode:' : 'Freeplay:';
@@ -941,7 +939,8 @@ class PlayState extends MusicBeatState
 			
 			final auto = (lane != 0 || cpuControlled);
 			
-			var strums = new PlayField(0, 0, SONG.keys, character, isPlayer, auto, lane, arrowSkins[lane]);
+			var skin = lane == 1 ? dad.noteskin : boyfriend.noteskin;
+			var strums = new PlayField(0, 0, SONG.keys, character, isPlayer, auto, lane, skin ?? arrowSkins[lane]);
 			// strums.scale = NoteUtil.getSkinFromID(lane).scale;
 			scripts.call('preReceptorGeneration', [strums, lane]);
 			strums.generateReceptors();
@@ -1022,280 +1021,288 @@ class PlayState extends MusicBeatState
 	var startTimer:FlxTimer = null;
 	var finishTimer:FlxTimer = null;
 	
-    public function startCountdown():Void
-    {
-        if (startedCountdown)
-        {
-            scripts.call('onStartCountdown', []);
-            return;
-        }
-        
-        inCutscene = false;
-        
-        final ret:Dynamic = scripts.call('onStartCountdown', []);
-        
-        if (ret != ScriptConstants.STOP_FUNC)
-        {
-            if (!genNotesBeforeCountdown) generatePlayfields();
-            
-            new FlxTimer().start(countdownDelay, (t:FlxTimer) -> {
-                startedCountdown = true;
-                
-                if (startOnTime > 0)
-                {
-                    clearNotesBefore(startOnTime);
-                    setSongTime(startOnTime - 350);
-                    return;
-                }
-                else if (skipCountdown)
-                {
-                    Conductor.songPosition = 0;
-                    setSongTime(0);
-                    return;
-                }
-                
-                var countdownData:Array<Dynamic> = [];
-                var countdownName:String = "default";
-                var hasConfig:Bool = false;
-                
-                if (dad != null && dad.countdown != null && dad.countdown.length > 0)
-                {
-                    countdownName = dad.countdown;
-                }
-                
-                var jsonPath:String = Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/config.json');
-                
-                if (sys.FileSystem.exists(jsonPath))
-                {
-                    try
-                    {
-                        countdownData = haxe.Json.parse(sys.io.File.getContent(jsonPath));
-                        hasConfig = true;
-                    }
-                    catch (e:Dynamic)
-                    {
-                        trace("Failed parsing countdown json: " + e);
-                    }
-                }
-                
-                if (!hasConfig || countdownData.length == 0)
-                {
-                    var defaultJsonPath:String = Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/config.json');
-                    if (sys.FileSystem.exists(defaultJsonPath))
-                    {
-                        try
-                        {
-                            countdownData = haxe.Json.parse(sys.io.File.getContent(defaultJsonPath));
-                            hasConfig = true;
-                            countdownName = "default";
-                        }
-                        catch (e:Dynamic)
-                        {
-                            trace("Failed parsing default countdown json: " + e);
-                        }
-                    }
-                }
-                
-                if (!hasConfig || countdownData.length == 0)
-                {
-                    Conductor.songPosition = 0;
-                    setSongTime(0);
-                    startedCountdown = true;
-                    return;
-                }
-                
-                var uniqueBeats:Array<Int> = [];
-                for (step in countdownData)
-                {
-                    var beat:Int = step.beat;
-                    if (!uniqueBeats.contains(beat))
-                    {
-                        uniqueBeats.push(beat);
-                    }
-                }
-                uniqueBeats.sort(function(a, b) return a - b);
-                
-                var totalCountdownBeats:Int = uniqueBeats.length + 1;
-                
-                Conductor.songPosition = -(Conductor.crotchet * totalCountdownBeats);
-                scripts.call('onCountdownStarted', []);
-                
-                var swagCounter:Int = 0;
-                
-                startTimer = new FlxTimer().start((Conductor.crotchet / 1000) / playbackRate, function(tmr:FlxTimer) {
-                    handleBoppers(tmr.loopsLeft);
-                    
-                    if (swagCounter >= uniqueBeats.length)
-                    {
-                        Conductor.songPosition = 0;
-                        startSong();
-                        return;
-                    }
-                    
-                    var currentBeat:Int = uniqueBeats[swagCounter];
-                    var currentStep:Dynamic = null;
-                    
-                    for (step in countdownData)
-                    {
-                        if (step.beat == currentBeat)
-                        {
-                            currentStep = step;
-                            break;
-                        }
-                    }
-                    
-                    if (currentStep != null && currentStep.directory != null)
-                    {
-                        var dir:String = currentStep.directory;
-                        var imageLoaded:Bool = false;
-                        
-                        var possibleImagePaths:Array<String> = [
-                            Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/' + dir + '/image.png'),
-                            Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/' + dir + '/image.png'),
-                            'game/countdowns/' + countdownName + '/' + dir + '/image.png',
-                            'game/countdowns/default/' + dir + '/image.png'
-                        ];
-                        
-                        for (imgPath in possibleImagePaths)
-                        {
-                            try
-                            {
-                                if (FunkinAssets.exists(imgPath) || sys.FileSystem.exists(imgPath))
-                                {
-                                    var actualPath = Paths.getPath('game/countdowns/' + countdownName + '/' + dir + '/image.png', null, true);
-                                    
-                                    if (!FunkinAssets.exists(actualPath) && !sys.FileSystem.exists(actualPath))
-                                    {
-                                        actualPath = Paths.getPath('game/countdowns/default/' + dir + '/image.png', null, true);
-                                    }
-                                    
-                                    if (!FunkinAssets.exists(actualPath) && !sys.FileSystem.exists(actualPath))
-                                    {
-                                        actualPath = Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/' + dir + '/image.png');
-                                    }
-                                    
-                                    if (!FunkinAssets.exists(actualPath) && !sys.FileSystem.exists(actualPath))
-                                    {
-                                        actualPath = Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/' + dir + '/image.png');
-                                    }
-                                    
-                                    if (sys.FileSystem.exists(actualPath))
-                                    {
-                                        var countdownSprite = makeCountdownSprite(actualPath);
-                                        insert(members.indexOf(notes), countdownSprite);
-                                        imageLoaded = true;
-                                        break;
-                                    }
-                                }
-                            }
-                            catch (e:Dynamic) {}
-                        }
-                        
-                        if (!imageLoaded)
-                        {
-                            try
-                            {
-                                var defaultPath = Paths.COUNTDOWN_PREFIX + dir;
-                                if (FunkinAssets.exists(Paths.getPath('images/' + defaultPath + '.png', null, true)))
-                                {
-                                    var countdownSprite = new FlxSprite();
-                                    countdownSprite.loadGraphic(Paths.image(defaultPath));
-                                    countdownSprite.scrollFactor.set();
-                                    countdownSprite.updateHitbox();
-                                    countdownSprite.screenCenter();
-                                    countdownSprite.antialiasing = ClientPrefs.globalAntialiasing;
-                                    countdownSprite.cameras = [camHUD];
-                                    
-                                    FlxTween.tween(countdownSprite, {alpha: 0}, Conductor.crotchet / 1000 / playbackRate,
-                                        {
-                                            ease: FlxEase.cubeInOut,
-                                            onComplete: function(twn:FlxTween) {
-                                                remove(countdownSprite, true);
-                                                countdownSprite.destroy();
-                                            }
-                                        });
-                                    insert(members.indexOf(notes), countdownSprite);
-                                    imageLoaded = true;
-                                }
-                            }
-                            catch (e:Dynamic) {}
-                        }
-                        
-                        if (countdownSounds)
-                        {
-                            var soundPlayed:Bool = false;
-                            
-                            var possibleAudioPaths:Array<String> = [
-                                Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/' + dir + '/audio.ogg'),
-                                Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/' + dir + '/audio.ogg'),
-                                '/game/countdowns/' + countdownName + '/' + dir + '/audio.ogg',
-                                '/game/countdowns/default/' + dir + '/audio.ogg'
-                            ];
-                            
-                            for (sndPath in possibleAudioPaths)
-                            {
-                                try
-                                {
-                                    if (sys.FileSystem.exists(sndPath))
-                                    {
-                                        FlxG.sound.play(openfl.media.Sound.fromFile(sndPath), 0.6);
-                                        soundPlayed = true;
-                                        break;
-                                    }
-                                }
-                                catch (e:Dynamic) {}
-                            }
-                            
-                            if (!soundPlayed)
-                            {
-                                try
-                                {
-                                    var soundName = 'countdown/' + dir;
-                                    if (Paths.fileExists('sounds/' + soundName + '.ogg'))
-                                    {
-                                        FlxG.sound.play(Paths.sound(soundName), 0.6);
-                                        soundPlayed = true;
-                                    }
-                                }
-                                catch (e:Dynamic) {}
-                            }
-                            
-                            if (!soundPlayed)
-                            {
-                                try
-                                {
-                                    var modSoundPath = Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/' + dir + '/audio.ogg');
-                                    if (sys.FileSystem.exists(modSoundPath))
-                                    {
-                                        FlxG.sound.play(openfl.media.Sound.fromFile(modSoundPath), 0.6);
-                                        soundPlayed = true;
-                                    }
-                                }
-                                catch (e:Dynamic) {}
-                            }
-                            
-                            if (!soundPlayed)
-                            {
-                                try
-                                {
-                                    var defaultSoundPath = Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/' + dir + '/audio.ogg');
-                                    if (sys.FileSystem.exists(defaultSoundPath))
-                                    {
-                                        FlxG.sound.play(openfl.media.Sound.fromFile(defaultSoundPath), 0.6);
-                                        soundPlayed = true;
-                                    }
-                                }
-                                catch (e:Dynamic) {}
-                            }
-                        }
-                    }
-                    
-                    scripts.call('onCountdownTick', [swagCounter]);
-                    swagCounter += 1;
-                }, totalCountdownBeats);
-            });
-        }
-    }
+	public function startCountdown():Void
+	{
+		if (startedCountdown)
+		{
+			scripts.call('onStartCountdown', []);
+			return;
+		}
+		
+		inCutscene = false;
+		
+		final ret:Dynamic = scripts.call('onStartCountdown', []);
+		
+		if (ret != ScriptConstants.STOP_FUNC)
+		{
+			if (!genNotesBeforeCountdown) generatePlayfields();
+			
+			new FlxTimer().start(countdownDelay, (t:FlxTimer) -> {
+				startedCountdown = true;
+				
+				if (startOnTime > 0)
+				{
+					clearNotesBefore(startOnTime);
+					setSongTime(startOnTime - 350);
+					return;
+				}
+				else if (skipCountdown)
+				{
+					Conductor.songPosition = 0;
+					setSongTime(0);
+					return;
+				}
+				
+				var countdownData:Array<Dynamic> = [];
+				var countdownName:String = "default";
+				var hasConfig:Bool = false;
+				
+				if (dad != null && dad.countdown != null && dad.countdown.length > 0)
+				{
+					countdownName = dad.countdown;
+				}
+				
+				var jsonPath:String = Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/config.json');
+				
+				if (sys.FileSystem.exists(jsonPath))
+				{
+					try
+					{
+						countdownData = haxe.Json.parse(sys.io.File.getContent(jsonPath));
+						hasConfig = true;
+					}
+					catch (e:Dynamic)
+					{
+						trace("Failed parsing countdown json: " + e);
+					}
+				}
+				
+				if (!hasConfig || countdownData.length == 0)
+				{
+					var defaultJsonPath:String = Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/config.json');
+					if (sys.FileSystem.exists(defaultJsonPath))
+					{
+						try
+						{
+							countdownData = haxe.Json.parse(sys.io.File.getContent(defaultJsonPath));
+							hasConfig = true;
+							countdownName = "default";
+						}
+						catch (e:Dynamic)
+						{
+							trace("Failed parsing default countdown json: " + e);
+						}
+					}
+				}
+				
+				if (!hasConfig || countdownData.length == 0)
+				{
+					Conductor.songPosition = 0;
+					setSongTime(0);
+					startedCountdown = true;
+					return;
+				}
+				
+				var uniqueBeats:Array<Int> = [];
+				for (step in countdownData)
+				{
+					var beat:Int = step.beat;
+					if (!uniqueBeats.contains(beat))
+					{
+						uniqueBeats.push(beat);
+					}
+				}
+				uniqueBeats.sort(function(a, b) return a - b);
+				
+				var totalCountdownBeats:Int = uniqueBeats.length + 1;
+				
+				Conductor.songPosition = -(Conductor.crotchet * totalCountdownBeats);
+				scripts.call('onCountdownStarted', []);
+				
+				var swagCounter:Int = 0;
+				
+				startTimer = new FlxTimer().start((Conductor.crotchet / 1000) / playbackRate, function(tmr:FlxTimer) {
+					handleBoppers(tmr.loopsLeft);
+					
+					if (swagCounter >= uniqueBeats.length)
+					{
+						Conductor.songPosition = 0;
+						startSong();
+						return;
+					}
+					
+					var currentBeat:Int = uniqueBeats[swagCounter];
+					var currentStep:Dynamic = null;
+					
+					for (step in countdownData)
+					{
+						if (step.beat == currentBeat)
+						{
+							currentStep = step;
+							break;
+						}
+					}
+					
+					if (currentStep != null && currentStep.directory != null)
+					{
+						var dir:String = currentStep.directory;
+						var imageLoaded:Bool = false;
+						
+						var possibleImagePaths:Array<String> = [Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/' + dir + '/image.png'),
+							Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/' + dir + '/image.png'),
+							'game/countdowns/'
+							+ countdownName
+							+ '/'
+							+ dir
+							+ '/image.png',
+							'game/countdowns/default/'
+							+ dir
+							+ '/image.png'];
+							
+						for (imgPath in possibleImagePaths)
+						{
+							try
+							{
+								if (FunkinAssets.exists(imgPath) || sys.FileSystem.exists(imgPath))
+								{
+									var actualPath = Paths.getPath('game/countdowns/' + countdownName + '/' + dir + '/image.png', null, true);
+									
+									if (!FunkinAssets.exists(actualPath) && !sys.FileSystem.exists(actualPath))
+									{
+										actualPath = Paths.getPath('game/countdowns/default/' + dir + '/image.png', null, true);
+									}
+									
+									if (!FunkinAssets.exists(actualPath) && !sys.FileSystem.exists(actualPath))
+									{
+										actualPath = Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/' + dir + '/image.png');
+									}
+									
+									if (!FunkinAssets.exists(actualPath) && !sys.FileSystem.exists(actualPath))
+									{
+										actualPath = Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/' + dir + '/image.png');
+									}
+									
+									if (sys.FileSystem.exists(actualPath))
+									{
+										var countdownSprite = makeCountdownSprite(actualPath);
+										insert(members.indexOf(notes), countdownSprite);
+										imageLoaded = true;
+										break;
+									}
+								}
+							}
+							catch (e:Dynamic) {}
+						}
+						
+						if (!imageLoaded)
+						{
+							try
+							{
+								var defaultPath = Paths.COUNTDOWN_PREFIX + dir;
+								if (FunkinAssets.exists(Paths.getPath('images/' + defaultPath + '.png', null, true)))
+								{
+									var countdownSprite = new FlxSprite();
+									countdownSprite.loadGraphic(Paths.image(defaultPath));
+									countdownSprite.scrollFactor.set();
+									countdownSprite.updateHitbox();
+									countdownSprite.screenCenter();
+									countdownSprite.antialiasing = ClientPrefs.globalAntialiasing;
+									countdownSprite.cameras = [camHUD];
+									
+									FlxTween.tween(countdownSprite, {alpha: 0}, Conductor.crotchet / 1000 / playbackRate,
+										{
+											ease: FlxEase.cubeInOut,
+											onComplete: function(twn:FlxTween) {
+												remove(countdownSprite, true);
+												countdownSprite.destroy();
+											}
+										});
+									insert(members.indexOf(notes), countdownSprite);
+									imageLoaded = true;
+								}
+							}
+							catch (e:Dynamic) {}
+						}
+						
+						if (countdownSounds)
+						{
+							var soundPlayed:Bool = false;
+							
+							var possibleAudioPaths:Array<String> = [Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/' + dir + '/audio.ogg'),
+								Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/' + dir + '/audio.ogg'),
+								'/game/countdowns/'
+								+ countdownName
+								+ '/'
+								+ dir
+								+ '/audio.ogg',
+								'/game/countdowns/default/'
+								+ dir
+								+ '/audio.ogg'];
+								
+							for (sndPath in possibleAudioPaths)
+							{
+								try
+								{
+									if (sys.FileSystem.exists(sndPath))
+									{
+										FlxG.sound.play(openfl.media.Sound.fromFile(sndPath), 0.6);
+										soundPlayed = true;
+										break;
+									}
+								}
+								catch (e:Dynamic) {}
+							}
+							
+							if (!soundPlayed)
+							{
+								try
+								{
+									var soundName = 'countdown/' + dir;
+									if (Paths.fileExists('sounds/' + soundName + '.ogg'))
+									{
+										FlxG.sound.play(Paths.sound(soundName), 0.6);
+										soundPlayed = true;
+									}
+								}
+								catch (e:Dynamic) {}
+							}
+							
+							if (!soundPlayed)
+							{
+								try
+								{
+									var modSoundPath = Paths.mods(Mods.currentModDirectory + '/game/countdowns/' + countdownName + '/' + dir + '/audio.ogg');
+									if (sys.FileSystem.exists(modSoundPath))
+									{
+										FlxG.sound.play(openfl.media.Sound.fromFile(modSoundPath), 0.6);
+										soundPlayed = true;
+									}
+								}
+								catch (e:Dynamic) {}
+							}
+							
+							if (!soundPlayed)
+							{
+								try
+								{
+									var defaultSoundPath = Paths.mods(Mods.currentModDirectory + '/game/countdowns/default/' + dir + '/audio.ogg');
+									if (sys.FileSystem.exists(defaultSoundPath))
+									{
+										FlxG.sound.play(openfl.media.Sound.fromFile(defaultSoundPath), 0.6);
+										soundPlayed = true;
+									}
+								}
+								catch (e:Dynamic) {}
+							}
+						}
+					}
+					
+					scripts.call('onCountdownTick', [swagCounter]);
+					swagCounter += 1;
+				}, totalCountdownBeats);
+			});
+		}
+	}
 	
 	function makeCountdownSprite(path:String):FlxSprite
 	{
@@ -1770,18 +1777,14 @@ class PlayState extends MusicBeatState
 					case 'dad' | 'opponent' | '1':
 						fieldID = 1;
 					default:
-						fieldID = Std.parseInt(event.value1);
+						fieldID = Std.parseInt(event.value2);
 						if (Math.isNaN(fieldID)) fieldID = 0;
 				}
 				
 				var skin = new NoteSkin(event.value1, SONG.keys, fieldID);
+				skin.ID = fieldID;
 				
-				// load the skin so game no lag when change le skin
-				Paths.getAtlasFrames(skin.noteTexture);
-				Paths.getAtlasFrames(skin.splashTexture);
-				Paths.getAtlasFrames(skin.sustainSplashTexture);
-				
-				skin = FlxDestroyUtil.destroy(skin);
+				getFieldFromID(fieldID).changeSkin(skin);
 			case 'Change Character':
 				var charType:Int = 0;
 				switch (event.value1.toLowerCase())

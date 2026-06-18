@@ -528,6 +528,15 @@ class CharacterEditorState extends UIState // MUST EXTEND UI STATE needed for ac
 			playCharacterCountdown(character.countdown);
 		}
 		
+		refreshNoteskinDropdown();
+		
+		uiElements.characterDialogBox.noteskinDropdown.onChange = (ui) -> {
+			if (ui.data.isDropDownItem())
+			{
+				character.noteskin = ui.data.id;
+			}
+		}
+		
 		uiElements.characterDialogBox.healthIconTextField.onChange = (ui) -> {
 			character.healthIcon = uiElements.characterDialogBox.healthIconTextField.value;
 			updateHealthIcon();
@@ -1020,6 +1029,45 @@ class CharacterEditorState extends UIState // MUST EXTEND UI STATE needed for ac
 		super.startOutro(onOutroComplete);
 	}
 	
+	function refreshNoteskinDropdown():Void
+	{
+		var directories:Array<String> = [
+			#if MODS_ALLOWED
+			Paths.mods(Mods.currentModDirectory + '/game/noteskins/'),
+			#end
+			Paths.getCorePath('data/noteskins/')
+		];
+		#if MODS_ALLOWED
+		for (mod in Mods.globalMods)
+			directories.push(Paths.mods('$mod/game/noteskins/'));
+		#end
+		
+		var noteskins:Array<String> = ['default'];
+		
+		for (directory in directories)
+		{
+			if (!sys.FileSystem.exists(directory)) continue;
+			
+			var files = FileSystem.readDirectory(directory);
+			
+			for (file in files)
+			{
+				var fullPath = directory + file;
+				if (!sys.FileSystem.isDirectory(fullPath)) continue;
+				
+				var configPath = fullPath + '/config.json';
+				if (sys.FileSystem.exists(configPath))
+				{
+					var skin:String = file;
+					if (!noteskins.contains(skin)) noteskins.push(skin);
+				}
+			}
+		}
+		
+		uiElements.characterDialogBox.noteskinDropdown.populateList([for (skin in noteskins) ToolKitUtils.makeSimpleDropDownItem(skin)]);
+		uiElements.characterDialogBox.noteskinDropdown.dataSource.sort(null, ASCENDING);
+	}
+	
 	function playSings()
 	{
 		final isAlt = FlxG.keys.pressed.SHIFT;
@@ -1185,6 +1233,7 @@ class CharacterEditorState extends UIState // MUST EXTEND UI STATE needed for ac
 		
 		// Countdown
 		uiElements.characterDialogBox.countdownTextField.value = character.countdown ?? '';
+		uiElements.characterDialogBox.noteskinDropdown.selectItemBy((item) -> item.id == character.noteskin ?? "default");
 		
 		// animations tab
 		uiElements.characterDialogBox.animationsDropdown.selectItemBy((item) -> return item.id == character.getAnimName());
@@ -1651,6 +1700,7 @@ class CharacterEditorState extends UIState // MUST EXTEND UI STATE needed for ac
 				"dance_every": character.danceEveryNumBeats,
 				"_editor_isPlayer": character.isPlayer,
 				"countdown": character.countdown,
+				"noteskin": character.noteskin,
 				
 				"gameover_character": character.gameoverCharacter,
 				"gameover_intial_sound": character.gameoverInitialDeathSound,
@@ -1761,6 +1811,7 @@ class CharacterEditorState extends UIState // MUST EXTEND UI STATE needed for ac
 			scale: 1,
 			dance_every: 2,
 			countdown: "default",
+			noteskin: "default",
 			scalableOffsets: true
 		};
 }

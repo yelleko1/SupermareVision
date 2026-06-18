@@ -99,7 +99,7 @@ abstract NoteSharedTailState(Array<Dynamic>) to Array<Dynamic>
 	
 	function set_parent(v:Note):Note return this[0] = v;
 	
-	function set_tail(v:Array<Note>):Array<Note> return this[1] = v; // well this one is useless
+	function set_tail(v:Array<Note>):Array<Note> return this[1] = v;
 	
 	function set_splash(v:Null<SustainSplash>):Null<SustainSplash> return this[2] = v;
 	
@@ -119,20 +119,20 @@ class Note extends FunkinSprite implements funkin.game.modchart.IModNote
 	
 	public var visualTime:Float = 0;
 	public var visualLength:Float = 0;
-	public var typeOffsetX:Float = 0; // used to offset notes, mainly for note types. use in place of offset.x and offset.y when offsetting notetypes
+	public var typeOffsetX:Float = 0;
 	public var typeOffsetY:Float = 0;
 	
 	public var noteDiff:Float = 1000;
 	public var quant:Int = 4;
 	
 	public var z:Float = 0;
-	public var garbage:Bool = false; // if this is true, the note will be removed in the next update cycle
+	public var garbage:Bool = false;
 	public var alphaMod:Float = 1;
-	public var alphaMod2:Float = 1; // TODO: unhardcode this shit lmao
+	public var alphaMod2:Float = 1;
 	
 	public var extraData:Map<String, Dynamic> = [];
 	public var hitbox:Float = Conductor.safeZoneOffset;
-	public var isQuant:Bool = false; // mainly for color swapping, so it changes color depending on which set (quants or regular notes)
+	public var isQuant:Bool = false;
 	public var canQuant:Bool = true;
 	public var strumTime:Float = 0;
 	
@@ -150,20 +150,13 @@ class Note extends FunkinSprite implements funkin.game.modchart.IModNote
 	
 	public var spawned:Bool = false;
 	
-	// shared between a note and its tail to prevent some issues
-	// its kind of  fuking stupid theres probably some other way to fix it but i cant think rn
 	public var tailState:NoteSharedTailState;
 	
-	public var tail:Array<Note> = []; // for sustains
+	public var tail:Array<Note> = [];
 	public var parent:Null<Note> = null;
 	
-	// 0 to 1, 1 = missed
 	public var coyoteProgress:Float = 0;
 	
-	/**
-	 * if true, the note cannot be hit.
-	 * 
-	 */
 	public var blockHit:Bool = false;
 	
 	public var sustainLength:Float = 0;
@@ -209,7 +202,7 @@ class Note extends FunkinSprite implements funkin.game.modchart.IModNote
 	public var hitHealth:Float = 0.023;
 	public var missHealth:Float = 0.0475;
 	public var rating:String = 'unknown';
-	public var ratingMod:Float = 0; // 9 = unknown, 0.25 = shit, 0.5 = bad, 0.75 = good, 1 = sick
+	public var ratingMod:Float = 0;
 	public var ratingDisabled:Bool = false;
 	
 	public var texture(default, set):String = null;
@@ -220,7 +213,7 @@ class Note extends FunkinSprite implements funkin.game.modchart.IModNote
 	public var noMissAnimation:Bool = false;
 	public var hitCausesMiss:Bool = false;
 	public var canMiss:Bool = false;
-	public var distance:Float = 2000; // plan on doing scroll directions soon -bb
+	public var distance:Float = 2000;
 	
 	public var hitsoundDisabled:Bool = false;
 	
@@ -434,12 +427,10 @@ class Note extends FunkinSprite implements funkin.game.modchart.IModNote
 	
 	public function reloadNote(?_prefix:String = '', ?_texture:String = '', ?_suffix:String = '')
 	{
-		// Fix null values
 		if (_prefix == null) _prefix = '';
 		if (_texture == null) _texture = '';
 		if (_suffix == null) _suffix = '';
 		
-		// Save prefix/suffix only if provided
 		if (_prefix.length > 0) this.prefix = _prefix;
 		if (_suffix.length > 0) this.suffix = _suffix;
 		
@@ -447,27 +438,34 @@ class Note extends FunkinSprite implements funkin.game.modchart.IModNote
 		
 		skin ??= NoteUtil.getSkinFromID(player);
 		
-		var _skin:String = _texture;
-		if (_skin.length < 1)
+		if (skin != null && skin.noteAtlas != null)
 		{
-			_skin = skin?.noteTexture;
-			if (_skin == null || _skin.length < 1) _skin = 'NOTE_assets';
+			frames = skin.noteAtlas;
 		}
-		
-		var animName:String = (animation.name ?? getDefaultAnim());
-		
-		var arraySkin:Array<String> = _skin.split('/');
-		var lastIndex:Int = arraySkin.length - 1;
-		
-		arraySkin[lastIndex] = this.prefix + arraySkin[lastIndex] + this.suffix;
-		
-		var atlasPath:String = arraySkin.join('/');
+		else
+		{
+			var _skin:String = _texture;
+			if (_skin.length < 1)
+			{
+				_skin = skin?.noteTexture;
+				if (_skin == null || _skin.length < 1) _skin = 'NOTE_assets';
+			}
+			
+			var arraySkin:Array<String> = _skin.split('/');
+			var lastIndex:Int = arraySkin.length - 1;
+			
+			arraySkin[lastIndex] = this.prefix + arraySkin[lastIndex] + this.suffix;
+			
+			var atlasPath:String = arraySkin.join('/');
+			
+			frames = Paths.getSparrowAtlas(atlasPath);
+		}
 		
 		isQuant = ClientPrefs.quants && (skin?.quantsEnabled ?? true) && canQuant;
 		
-		frames = Paths.getSparrowAtlas(atlasPath);
 		loadNoteAnims();
 		
+		var animName:String = getDefaultAnim();
 		if (animName != null) playAnim(animName, true);
 		
 		if (inEditor && !skipScale) setGraphicSize(ChartEditorState.GRID_SIZE, ChartEditorState.GRID_SIZE);
@@ -527,7 +525,6 @@ class Note extends FunkinSprite implements funkin.game.modchart.IModNote
 		rgbGraphics = NoteUtil.getCurColors(noteData, quant, player);
 	}
 	
-	// SPECIFICALLY for note types, only use if u 100% do not want to have ur note re-colored
 	public function setCustomColor(color:Array<FlxColor>)
 	{
 		var fallback = NoteUtil.getCurColors(noteData, quant, player);
@@ -556,7 +553,7 @@ class Note extends FunkinSprite implements funkin.game.modchart.IModNote
 		}
 	}
 	
-	var _cacheRect:Null<FlxRect> = null; // jsut for pooling
+	var _cacheRect:Null<FlxRect> = null;
 	
 	inline function getRect()
 	{
@@ -629,7 +626,6 @@ class Note extends FunkinSprite implements funkin.game.modchart.IModNote
 		super.destroy();
 	}
 	
-	// for some reason flixel decides to round the rect? im not sure why you would want that behavior that should be something you do if u want
 	override function set_clipRect(rect:FlxRect)
 	{
 		clipRect = rect;

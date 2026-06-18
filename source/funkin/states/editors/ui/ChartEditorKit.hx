@@ -90,7 +90,6 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 		
 		refreshCharacterDropdowns();
 		refreshStageDropdown();
-		refreshSkinDropdown();
 		
 		songDialog.bfDropdown.onChange = function(event) {
 			if (!event.data.isDropDownItem()) return;
@@ -670,45 +669,6 @@ class ChartEditorUI extends flixel.group.FlxSpriteContainer
 		songDialog.stageDropdown.populateList([for (stage in stages) ToolKitUtils.makeSimpleDropDownItem(stage)]);
 		songDialog.stageDropdown.dataSource.sort(null, ASCENDING);
 		songDialog.stageDropdown.selectedItem = song.stage;
-	}
-	
-	function refreshSkinDropdown():Void
-	{
-		var directories:Array<String> = [
-			#if MODS_ALLOWED
-			Paths.mods('data/noteskins/'), Paths.mods(Mods.currentModDirectory + '/data/noteskins/'),
-			#end
-			Paths.getCorePath('data/noteskins/')
-		];
-		#if MODS_ALLOWED
-		for (mod in Mods.globalMods)
-			directories.push(Paths.mods('$mod/data/noteskins/'));
-		#end
-		
-		var noteskins:Array<String> = ['default'];
-		
-		for (directory in directories)
-		{
-			if (!FunkinAssets.exists(directory)) continue;
-			
-			for (file in FunkinAssets.readDirectory(directory))
-			{
-				if (!file.endsWith('.json')) continue;
-				
-				var skin:String = file.substr(0, file.length - 5);
-				
-				if (!noteskins.contains(skin)) noteskins.push(skin);
-			}
-		}
-		
-		for (dropdown in [songDialog.noteSkinDropdown])
-		{
-			dropdown.populateList([for (skin in noteskins) ToolKitUtils.makeSimpleDropDownItem(skin)]);
-			dropdown.dataSource.sort(null, ASCENDING);
-		}
-		
-		// songDialog.noteSkinDropdown.selectedItem = song.arrowSkin;
-		// songDialog.splashSkinDropdown.selectedItem = song.splashSkin;
 	}
 	
 	final snapLeniency:Float = 1.25;

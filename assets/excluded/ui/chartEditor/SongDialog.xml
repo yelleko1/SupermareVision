@@ -69,18 +69,6 @@
 						<data> <item text="stage"/> </data>
 					</dropdown>
 				</vbox>
-				<vbox width="100%">
-					<label text="Note Skin:" horizontalAlign="center"/>
-					<dropdown width="100%" searchable="true" searchPrompt="default" id="noteSkinDropdown">
-						<data> <item text="default"/> </data>
-					</dropdown>
-				</vbox>
-				<!--vbox width="100%">
-					<label text="Splash Skin:" horizontalAlign="center"/>
-					<dropdown width="100%" searchable="true" searchPrompt="default" id="splashSkinDropdown">
-						<data> <item text="default"/> </data>
-					</dropdown>
-				</vbox-->
 			</hbox>
 		</vbox>
 		

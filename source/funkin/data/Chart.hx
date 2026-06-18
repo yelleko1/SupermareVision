@@ -104,12 +104,6 @@ class Chart
 		
 		songJson.keys ??= 4;
 		songJson.lanes ??= 2;
-		if (songJson.arrowSkins == null || songJson.arrowSkins.length == 0)
-		{
-			songJson.arrowSkins = [];
-			for (i in 0...songJson.lanes)
-				songJson.arrowSkins.push('default');
-		}
 		
 		final sectionsData:Array<SongSection> = songJson.notes;
 		

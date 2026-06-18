@@ -120,9 +120,14 @@ class Character extends Bopper
 	public var lastHitTime:Float = -1000;
 	
 	/**
-	 * The countdown style to use for the character.
+	 * The countdown style to use for the character
 	 */
 	public var countdown:Null<String> = null;
+	
+	/**
+	 * The noteskin to use for this character
+	 */
+	public var noteskin:Null<String> = null;
 	
 	// Used on Character Editor
 	public var isPlayerInEditor:Null<Bool> = null;
@@ -230,6 +235,7 @@ class Character extends Bopper
 		}
 		
 		this.countdown = json.countdown;
+		this.noteskin = json.noteskin;
 		
 		this.animations = json.animations;
 		if (animations != null && animations.length > 0)

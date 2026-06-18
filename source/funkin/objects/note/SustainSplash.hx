@@ -1,5 +1,10 @@
 package funkin.objects.note;
 
+import flixel.graphics.frames.FlxAtlasFrames;
+import flixel.graphics.FlxGraphic;
+
+import openfl.display.BitmapData;
+
 import funkin.data.*;
 import funkin.objects.Bopper;
 import funkin.game.shaders.RGBShader;
@@ -16,7 +21,6 @@ class SustainSplash extends FunkinSprite implements funkin.game.modchart.IModNot
 	private var _note:Note;
 	private var _strum:StrumNote;
 	
-	// internal thing to optimize loading frames
 	@:noCompletion var _textureLoaded:Null<String> = null;
 	
 	public var skin:NoteSkin;
@@ -25,36 +29,111 @@ class SustainSplash extends FunkinSprite implements funkin.game.modchart.IModNot
 	{
 		super(x, y);
 		
-		addAnims(NoteUtil.getSkinFromID(player));
+		skin = NoteUtil.getSkinFromID(player);
+		
+		addAnims();
 	}
 	
-	function addAnims(_skin:NoteSkin)
+	function addAnims()
 	{
-		frames = Paths.getSparrowAtlas(_skin.sustainSplashTexture);
+		if (skin != null && skin.sustainSplashAtlas != null)
+		{
+			frames = skin.sustainSplashAtlas;
+		}
+		else
+		{
+			var _skin:String = 'sustains';
+			var fullPath:String = '';
+			var found:Bool = false;
+			
+			var possiblePaths:Array<String> = [Paths.mods(Mods.currentModDirectory + '/game/noteskins/' + (skin?.name ?? 'default') + '/' + _skin + '/image.png'),
+				Paths.mods(Mods.currentModDirectory + '/game/noteskins/' + (skin?.name ?? 'default') + '/' + _skin + '.png'),
+				Paths.mods(Mods.currentModDirectory + '/game/noteskins/default/' + _skin + '/image.png'),
+				Paths.mods(Mods.currentModDirectory + '/game/noteskins/default/' + _skin + '.png'),
+				'game/noteskins/'
+				+ (skin?.name ?? 'default')
+				+ '/'
+				+ _skin
+				+ '/image.png',
+				'game/noteskins/default/'
+				+ _skin
+				+ '/image.png'];
+				
+			#if MODS_ALLOWED
+			for (mod in Mods.globalMods)
+			{
+				possiblePaths.push(Paths.mods(mod + '/game/noteskins/' + (skin?.name ?? 'default') + '/' + _skin + '/image.png'));
+				possiblePaths.push(Paths.mods(mod + '/game/noteskins/' + (skin?.name ?? 'default') + '/' + _skin + '.png'));
+				possiblePaths.push(Paths.mods(mod + '/game/noteskins/default/' + _skin + '/image.png'));
+				possiblePaths.push(Paths.mods(mod + '/game/noteskins/default/' + _skin + '.png'));
+			}
+			#end
+			
+			for (path in possiblePaths)
+			{
+				if (sys.FileSystem.exists(path))
+				{
+					fullPath = path;
+					found = true;
+					break;
+				}
+			}
+			
+			if (found)
+			{
+				var bmp = BitmapData.fromFile(fullPath);
+				var graphic = FlxGraphic.fromBitmapData(bmp);
+				
+				var xmlPath = fullPath.substr(0, fullPath.length - 4) + '.xml';
+				if (!sys.FileSystem.exists(xmlPath))
+				{
+					var dir = fullPath.substr(0, fullPath.lastIndexOf('/') + 1);
+					xmlPath = dir + 'sheet.xml';
+				}
+				
+				if (sys.FileSystem.exists(xmlPath))
+				{
+					var xml = Xml.parse(sys.io.File.getContent(xmlPath));
+					frames = FlxAtlasFrames.fromSparrow(graphic, xml);
+				}
+				else
+				{
+					frames = Paths.getSparrowAtlas(_skin);
+				}
+			}
+			else
+			{
+				frames = Paths.getSparrowAtlas(_skin);
+			}
+		}
 		
-		final animData = _skin.susSplashAnims;
+		if (frames == null) return;
 		
-		var noteData = -1;
+		final animData = skin.susSplashAnims;
+		
+		var noteIndex = -1;
 		for (group in animData)
 		{
-			noteData += 1;
+			noteIndex += 1;
 			for (anim in group)
 			{
-				final animName = '${anim.anim}$noteData';
+				var animName = '${anim.anim}$noteIndex';
 				
-				animation.addByPrefix(animName, anim.xmlName, anim.fps, anim.looping);
+				animation.addByPrefix(animName, anim.xmlName, anim.fps != null ? anim.fps : 24, anim.looping != null ? anim.looping : false);
 				addOffset(animName, anim.offsets[0], anim.offsets[1]);
 			}
 		}
 		
-		animation.onFinish.add((anim) -> {
-			if (anim.contains('start')) playAnim('loop$data', false);
-			if (anim.contains('end')) kill();
+		animation.onFinish.add((animName) -> {
+			if (animName.contains('start')) playAnim('loop' + data, false);
+			if (animName.contains('end')) kill();
 		});
 	}
 	
 	public override function playAnim(anim:String, force:Bool = false, isReversed:Bool = false, frame:Int = 0)
 	{
+		if (animation.getByName(anim) == null) return;
+		
 		super.playAnim(anim, force, isReversed, frame);
 		
 		centerOffsets();
@@ -73,6 +152,8 @@ class SustainSplash extends FunkinSprite implements funkin.game.modchart.IModNot
 	
 	public function setupSplash(strum:StrumNote, ?note:Note, ?time:Float = 0.5, ?isPlayer:Bool = false, ?graphicsInput:RGBGraphics, ?field:PlayField)
 	{
+		if (note == null) return;
+		
 		this._note = note;
 		this._strum = strum;
 		
@@ -94,13 +175,28 @@ class SustainSplash extends FunkinSprite implements funkin.game.modchart.IModNot
 		
 		updateHitbox();
 		
-		playAnim('start$data', true);
+		if (animation.getByName('start$data') != null)
+		{
+			playAnim('start$data', true);
+		}
+		else
+		{
+			playAnim('start0', true);
+		}
+		
 		setColors(graphicsInput?.getColors());
 		_position();
 		
-		FlxTimer.wait(time, () -> {
-			if (isPlayer && ClientPrefs.noteSplashes) playAnim('end$data', true);
-			else kill();
+		new FlxTimer().start(time, function(tmr:FlxTimer) {
+			if (isPlayer && ClientPrefs.noteSplashes)
+			{
+				if (animation.getByName('end$data') != null) playAnim('end$data', true);
+				else kill();
+			}
+			else
+			{
+				kill();
+			}
 		});
 	}
 	

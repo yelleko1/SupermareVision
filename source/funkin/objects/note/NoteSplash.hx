@@ -1,34 +1,26 @@
 package funkin.objects.note;
 
-import flixel.FlxSprite;
+import flixel.graphics.frames.FlxAtlasFrames;
+import flixel.graphics.FlxGraphic;
 
-import funkin.game.shaders.*;
-import funkin.game.shaders.RGBShader;
+import openfl.display.BitmapData;
+
 import funkin.data.*;
-import funkin.states.*;
-import funkin.data.NoteSkin;
+import funkin.objects.Bopper;
+import funkin.game.shaders.RGBShader;
 
-// @:nullSafety
 class NoteSplash extends FunkinSprite implements funkin.game.modchart.IModNote
 {
-	/**
-	 * Colors applied to the notesplash to support custom colours
-	 */
 	public var rgbGraphics:RGBGraphics = new RGBGraphics();
 	
-	/**
-	 * The notedata of the splash
-	 */
 	public var data(get, set):Int;
-	
 	public var noteData:Int = 0;
 	
 	public var player:Int = 0;
 	
-	private var _note:Null<Note>;
-	private var _strum:Null<StrumNote>;
+	private var _note:Note;
+	private var _strum:StrumNote;
 	
-	// internal thing to optimize loading frames
 	@:noCompletion var _textureLoaded:Null<String> = null;
 	
 	public var skin:NoteSkin;
@@ -37,49 +29,107 @@ class NoteSplash extends FunkinSprite implements funkin.game.modchart.IModNote
 	{
 		super(x, y);
 		
-		this._note = null;
-		this._strum = null;
-		
-		this.data = noteData;
-		this.player = player;
-		
-		loadAnims(NoteUtil.getSkinFromID(player).splashTexture);
-		
-		final skin = NoteUtil.getSkinFromID(player);
-		if (skin != null)
-		{
-			scale.set(skin.splashScale, skin.splashScale);
-			baseScale.copyFrom(scale);
-		}
-	}
-	
-	public function setupNoteSplash(strum:StrumNote, ?note:Note, ?texture:String, ?graphicsInput:RGBGraphics, ?field:PlayField)
-	{
-		_note = note ?? null;
-		_strum = strum ?? null;
-		
-		data = note?.noteData ?? 0;
-		
-		player = field?.player ?? 0;
-		
 		skin = NoteUtil.getSkinFromID(player);
 		
-		antialiasing = skin.antialiasing;
-		
-		texture ??= 'noteSplashes';
-		
-		if (_textureLoaded != texture) loadAnims(texture);
-		
-		updateHitbox();
-		
-		playAnim('note$data', true);
-		setColors(graphicsInput?.getColors());
-		
-		if (!field.trackNoteSplashes) _position();
+		addAnims();
 	}
 	
-	public override function playAnim(anim:String, force:Bool = false, isReversed:Bool = false, frame:Int = 0):Void
+	function addAnims()
 	{
+		if (skin != null && skin.splashAtlas != null)
+		{
+			frames = skin.splashAtlas;
+		}
+		else
+		{
+			var _skin:String = 'noteSplashes';
+			var fullPath:String = '';
+			var found:Bool = false;
+			
+			var possiblePaths:Array<String> = [Paths.mods(Mods.currentModDirectory + '/game/noteskins/' + (skin?.name ?? 'default') + '/' + _skin + '/image.png'),
+				Paths.mods(Mods.currentModDirectory + '/game/noteskins/' + (skin?.name ?? 'default') + '/' + _skin + '.png'),
+				Paths.mods(Mods.currentModDirectory + '/game/noteskins/default/' + _skin + '/image.png'),
+				Paths.mods(Mods.currentModDirectory + '/game/noteskins/default/' + _skin + '.png'),
+				'game/noteskins/'
+				+ (skin?.name ?? 'default')
+				+ '/'
+				+ _skin
+				+ '/image.png',
+				'game/noteskins/default/' + _skin + '/image.png'
+			];
+			
+			#if MODS_ALLOWED
+			for (mod in Mods.globalMods)
+			{
+				possiblePaths.push(Paths.mods(mod + '/game/noteskins/' + (skin?.name ?? 'default') + '/' + _skin + '/image.png'));
+				possiblePaths.push(Paths.mods(mod + '/game/noteskins/' + (skin?.name ?? 'default') + '/' + _skin + '.png'));
+				possiblePaths.push(Paths.mods(mod + '/game/noteskins/default/' + _skin + '/image.png'));
+				possiblePaths.push(Paths.mods(mod + '/game/noteskins/default/' + _skin + '.png'));
+			}
+			#end
+			
+			for (path in possiblePaths)
+			{
+				if (sys.FileSystem.exists(path))
+				{
+					fullPath = path;
+					found = true;
+					break;
+				}
+			}
+			
+			if (found)
+			{
+				var bmp = BitmapData.fromFile(fullPath);
+				var graphic = FlxGraphic.fromBitmapData(bmp);
+				
+				var xmlPath = fullPath.substr(0, fullPath.length - 4) + '.xml';
+				if (!sys.FileSystem.exists(xmlPath))
+				{
+					var dir = fullPath.substr(0, fullPath.lastIndexOf('/') + 1);
+					xmlPath = dir + 'sheet.xml';
+				}
+				
+				if (sys.FileSystem.exists(xmlPath))
+				{
+					var xml = Xml.parse(sys.io.File.getContent(xmlPath));
+					frames = FlxAtlasFrames.fromSparrow(graphic, xml);
+				}
+				else
+				{
+					frames = Paths.getSparrowAtlas(_skin);
+				}
+			}
+			else
+			{
+				frames = Paths.getSparrowAtlas(_skin);
+			}
+		}
+		
+		if (frames == null) return;
+		
+		final animData = skin.splashAnims ?? NoteUtil.DEFAULT_NOTESPLASH_ANIMATIONS;
+		
+		for (noteData in 0...skin.keys)
+		{
+			if (animData[noteData] == null || animData[noteData].anim == null || animData[noteData].xmlName == null) continue;
+			
+			final animName = animData[noteData].anim;
+			final offsets = animData[noteData].offsets;
+			
+			animation.addByPrefix(animName, animData[noteData].xmlName, animData[noteData].fps != null ? animData[noteData].fps : 24, false);
+			addOffset(animName, offsets[0], offsets[1]);
+		}
+		
+		animation.onFinish.add((animName) -> {
+			kill();
+		});
+	}
+	
+	public override function playAnim(anim:String, force:Bool = false, isReversed:Bool = false, frame:Int = 0)
+	{
+		if (animation.getByName(anim) == null) return;
+		
 		super.playAnim(anim, force, isReversed, frame);
 		
 		centerOffsets();
@@ -88,7 +138,7 @@ class NoteSplash extends FunkinSprite implements funkin.game.modchart.IModNote
 	
 	public function setColors(?colors:Array<FlxColor>):Void
 	{
-		if (colors == null) return;
+		if (colors == null || skin == null) return;
 		
 		final sanitzedColourArray = colors ?? NoteUtil.colorToArray(skin.colors[data]);
 		
@@ -96,41 +146,44 @@ class NoteSplash extends FunkinSprite implements funkin.game.modchart.IModNote
 		rgbGraphics.setColors(sanitzedColourArray);
 	}
 	
-	function loadAnims(skin:String)
+	public function setupSplash(strum:StrumNote, ?note:Note, ?graphicsInput:RGBGraphics, ?field:PlayField)
 	{
-		frames = Paths.getSparrowAtlas(skin);
-		
-		final _skin:NoteSkin = NoteUtil.getSkinFromID(player);
-		
-		switch (skin)
+		if (note == null)
 		{
-			default:
-				final data = _skin.splashAnims ?? NoteUtil.DEFAULT_NOTESPLASH_ANIMATIONS;
-				
-				for (noteData in 0..._skin.keys)
-				{
-					if (data[noteData] == null || data[noteData].anim == null || data[noteData].xmlName == null) continue;
-					
-					final animName = data[noteData].anim;
-					final offsets = data[noteData].offsets;
-					
-					@:nullSafety(Off)
-					addAnimByPrefix(animName, data[noteData].xmlName, 24, false);
-					addOffset(animName, offsets[0], offsets[1]);
-				}
+			this._strum = strum;
+			this._note = null;
+			data = 0;
+		}
+		else
+		{
+			this._note = note;
+			this._strum = strum;
+			data = note.noteData;
 		}
 		
-		_textureLoaded = skin;
-	}
-	
-	override function update(elapsed:Float)
-	{
-		if (animation.curAnim != null) if (animation.curAnim.finished) kill();
+		visible = true;
+		angle = 0;
+		alpha = 1;
 		
-		super.update(elapsed);
+		this.player = field?.player ?? 0;
+		
+		skin = NoteUtil.getSkinFromID(player);
+		
+		antialiasing = skin.antialiasing;
+		
+		if (skin?.splashScale != null) scale.set(skin.splashScale, skin.splashScale);
+		
+		baseScale.copyFrom(scale);
+		
+		updateHitbox();
+		
+		playAnim('note$data', true);
+		
+		setColors(graphicsInput?.getColors());
+		
+		if (field != null && !field.trackNoteSplashes) _position();
 	}
 	
-	// doing this so the splash tracks the location of the strumnote if ur moving the notes actively with modmanager
 	function _position()
 	{
 		if (_strum != null)
@@ -147,6 +200,13 @@ class NoteSplash extends FunkinSprite implements funkin.game.modchart.IModNote
 	inline function get_data():Int return noteData;
 	
 	inline function set_data(v:Int):Int return noteData = v;
+	
+	override function update(elapsed:Float)
+	{
+		if (animation.curAnim != null && animation.curAnim.finished) kill();
+		
+		super.update(elapsed);
+	}
 	
 	override function drawSimple(camera:FlxCamera)
 	{
