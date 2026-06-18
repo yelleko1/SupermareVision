@@ -32,6 +32,8 @@ typedef Song =
 	var gfVersion:String;
 	var stage:String;
 	
+	var arrowSkins:Array<String>;
+	
 	// var arrowSkin:String;
 	// var splashSkin:String;
 	var ?format:String;

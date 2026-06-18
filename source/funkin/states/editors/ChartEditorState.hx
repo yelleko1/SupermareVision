@@ -222,56 +222,30 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	var waveformSprite:FlxSprite;
 	var gridLayer:FlxTypedGroup<FlxSprite>;
 	
-	// Caching and dirty flag for grid updates
-	var strumNotesCache:Array<StrumNote> = [];
-	var gridDirty:Bool = true;
-	var lastGridHash:String = "";
-	
 	public function reloadStrumShit():Void
 	{
-		if (strumLineNotes != null)
+		if (strumLineNotes == null)
 		{
-			for (m in strumLineNotes.members)
-			{
-				if (m != null)
-				{
-					m.destroy();
-					m = null;
-				}
-			}
-			strumLineNotes.clear();
+			strumLineNotes = new FlxTypedGroup<StrumNote>();
 		}
 		else
 		{
-			strumLineNotes = new FlxTypedGroup<StrumNote>();
+			for (m in strumLineNotes.members)
+			{
+				if (m != null) m.destroy();
+			}
+			strumLineNotes.clear();
 		}
 		
 		var total:Int = Std.int(song.keys * song.lanes);
 		for (i in 0...total)
 		{
-			var note:StrumNote;
-			if (i < strumNotesCache.length && strumNotesCache[i] != null)
-			{
-				note = strumNotesCache[i];
-				note.revive();
-				note.x = 0;
-				note.y = strumLine != null ? strumLine.y : 50;
-				note.setGraphicSize(GRID_SIZE, GRID_SIZE);
-				note.playAnim('static', true);
-				note.scrollFactor.set(1, 1);
-				note.updateHitbox();
-				note.alpha = 0;
-			}
-			else
-			{
-				note = new StrumNote(0, GRID_SIZE * (i + 1), strumLine != null ? strumLine.y : 50, i % song.keys);
-				note.setGraphicSize(GRID_SIZE, GRID_SIZE);
-				note.playAnim('static', true);
-				note.scrollFactor.set(1, 1);
-				note.updateHitbox();
-				note.alpha = 0;
-				strumNotesCache.push(note);
-			}
+			var note:StrumNote = new StrumNote(0, GRID_SIZE * (i + 1), strumLine != null ? strumLine.y : 50, i % song.keys);
+			note.setGraphicSize(GRID_SIZE, GRID_SIZE);
+			note.playAnim('static', true);
+			note.scrollFactor.set(1, 1);
+			note.updateHitbox();
+			note.alpha = 0;
 			strumLineNotes.add(note);
 		}
 	}
@@ -370,10 +344,14 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		dadIcon = CharacterParser.fetchInfo(song.player2).healthicon;
 		gfIcon = CharacterParser.fetchInfo(song.gfVersion).healthicon;
 		
+		// var eventIcon:FlxSprite = new FlxSprite(-GRID_SIZE - 5, -90).loadGraphic(Paths.image('eventArrow'));
 		leftIcon = new HealthIcon(bfIcon);
 		rightIcon = new HealthIcon(dadIcon);
 		cameraIcon = new FlxSprite().loadGraphic(Paths.image('editors/camera'));
 		
+		// eventIcon.setGraphicSize(30, 30);
+		
+		// add(eventIcon);
 		add(leftIcon);
 		add(rightIcon);
 		add(cameraIcon);
@@ -434,6 +412,32 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		add(zoomTxt);
 		bpmTxt.y = zoomTxt.y + 20;
 		
+		// clickForInfo.setPosition((textBox.width / 2) - (clickForInfo.width / 2), (textBox.height / 2) - (clickForInfo.height / 2));
+		// text =
+		// "W/S or Mouse Wheel - Change Conductor's strum time
+		// \nA/D - Go to the previous/next section
+		// \nLeft/Right - Change Snap
+		// \nUp/Down - Change Conductor's Strum Time with Snapping
+		// \nLeft Bracket / Right Bracket - Change Song Playback Rate (SHIFT to go Faster)
+		// \nHold Shift to move 4x faster
+		// \nHold Control and click on an arrow to select it
+		// \nZ/X - Zoom in/out
+		// \n
+		// \nEsc - Play your chart in game at the given timestamp
+		// \nEnter - Play your chart
+		// \nQ/E - Decrease/Increase Note Sustain Length
+		// \nSpace - Stop/Resume song";
+		
+		// var tipTextArray:Array<String> = text.split('\n');
+		// for (i in 0...tipTextArray.length) {
+		// 	var tipText:FlxText = new FlxText(UI_box.x, UI_box.y + UI_box.height + 8, 0, tipTextArray[i], 16);
+		// 	tipText.y += i * 12;
+		// 	tipText.setFormat(Paths.DEFAULT_FONT, 14, FlxColor.WHITE, LEFT/*, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK*/);
+		// 	//tipText.borderSize = 2;
+		// 	tipText.scrollFactor.set();
+		// 	add(tipText);
+		// }
+		
 		buildUI();
 		
 		prepareNotesUI();
@@ -447,6 +451,26 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		add(prevRenderedSustains);
 		add(prevRenderedNotes);
 		
+		// clickForInfo = new FlxText(UI_box.x + 20, UI_box.y + UI_box.height + 8, 0, 'Click for help!', 16);
+		// clickForInfo.setFormat(Paths.DEFAULT_FONT, 14, 0xFF8c8c8c, LEFT /*, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK*/);
+		// clickForInfo.scrollFactor.set();
+		
+		// textBox = new FlxSprite().makeGraphic(Std.int(clickForInfo.width * 1.25), Std.int(clickForInfo.height * 1.25),
+		// 	FlxColor.fromRGB(ClientPrefs.editorUIColor.red, ClientPrefs.editorUIColor.green, ClientPrefs.editorUIColor.blue));
+		// textBox.setPosition(((UI_box.width - textBox.width) / 2) + UI_box.x + 20, (UI_box.height + UI_box.y) + 10);
+		// textBox.scrollFactor.set();
+		// textBox.alpha = 0.6;
+		// textBox.color = FlxColor.BLACK;
+		
+		// textBox.camera = camHUD;
+		// clickForInfo.camera = camHUD;
+		
+		// bPos = FlxPoint.get(textBox.x, textBox.y);
+		// clickForInfo.setPosition(((textBox.width - clickForInfo.width) / 2) + textBox.x, (UI_box.height + UI_box.y) + 11.5);
+		
+		// add(textBox);
+		// add(clickForInfo);
+		
 		selectionBox = new DebugBounds();
 		selectionBox.negativeSize = true;
 		selectionBox.bgAlpha = .5;
@@ -459,8 +483,6 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		}
 		lastSong = currentSongName;
 		
-		// Initial grid update
-		gridDirty = true;
 		updateGrid();
 	}
 	
@@ -473,6 +495,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			events: [],
 			bpm: 150,
 			needsVoices: true,
+			arrowSkins: ['default', 'default'],
 			player1: 'bf',
 			player2: 'dad',
 			gfVersion: 'gf',
@@ -486,25 +509,6 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	
 	public override function destroy():Void
 	{
-		if (strumNotesCache != null)
-		{
-			for (note in strumNotesCache)
-			{
-				if (note != null) note.destroy();
-			}
-			strumNotesCache.resize(0);
-		}
-		
-		if (strumLineNotes != null)
-		{
-			for (m in strumLineNotes.members)
-			{
-				if (m != null) m.destroy();
-			}
-			strumLineNotes.clear();
-			strumLineNotes = null;
-		}
-		
 		FlxG.mouse.visible = false;
 		
 		super.destroy();
@@ -579,7 +583,156 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	
 	var bfHitsound:Bool = false;
 	var dadHitsound:Bool = false;
-	
+	/*
+		function addVisualsUI():Void
+		{
+			var tab_group_visual = new FlxUI(null, UI_box);
+			tab_group_visual.name = 'Visuals';
+			
+			var gradTxt = new FlxText(10, 10, 0, "Gradient Colors", 12);
+			
+			var gradient1colors = new FlxUIInputTextEx(10, 30, 150, '${ClientPrefs.editorGradColors[0].red}, ${ClientPrefs.editorGradColors[0].green}, ${ClientPrefs.editorGradColors[0].blue}', 8);
+			var gradient2colors = new FlxUIInputTextEx(10, 50, 150, '${ClientPrefs.editorGradColors[1].red}, ${ClientPrefs.editorGradColors[1].green}, ${ClientPrefs.editorGradColors[1].blue}', 8);
+			
+			var changecolors:FlxButton = new FlxButton(180, 37.5, "Change colors", function() {
+				var grad1Colors:Array<Int> = [for (i in gradient1colors.text.split(',')) Std.parseInt(i.trim())];
+				var grad2Colors:Array<Int> = [for (i in gradient2colors.text.split(',')) Std.parseInt(i.trim())];
+				
+				ClientPrefs.editorGradColors[0] = FlxColor.fromRGB(grad1Colors[0], grad1Colors[1], grad1Colors[2]);
+				ClientPrefs.editorGradColors[1] = FlxColor.fromRGB(grad2Colors[0], grad2Colors[1], grad2Colors[2]);
+				ClientPrefs.flush();
+				
+				reloadGradient();
+			});
+			
+			check_grad_vis = new FlxUICheckBox(10, 75, null, null, "Gradient Visible?", 100);
+			check_grad_vis.checked = gradient.alive;
+			
+			check_grad_vis.callback = function() {
+				ClientPrefs.editorGradVis = (!ClientPrefs.editorGradVis);
+				ClientPrefs.flush();
+				
+				reloadGradient();
+			}
+			
+			tab_group_visual.add(gradTxt);
+			tab_group_visual.add(gradient1colors);
+			tab_group_visual.add(gradient2colors);
+			tab_group_visual.add(changecolors);
+			tab_group_visual.add(check_grad_vis);
+			
+			var boxTxt = new FlxText(10, 95, 0, "Grid Colors", 12);
+			
+			var boxTxtColors1 = new FlxUIInputTextEx(10, 115, 150, '${ClientPrefs.editorBoxColors[0].red}, ${ClientPrefs.editorBoxColors[0].green}, ${ClientPrefs.editorBoxColors[0].blue}', 8);
+			var boxTxtColors2 = new FlxUIInputTextEx(10, 135, 150, '${ClientPrefs.editorBoxColors[1].red}, ${ClientPrefs.editorBoxColors[1].green}, ${ClientPrefs.editorBoxColors[1].blue}', 8);
+			
+			var changecolors:FlxButton = new FlxButton(180, 125, "Change colors", function() {
+				box1Colors = [];
+				box2Colors = [];
+				// gradient.y = 0;
+				
+				for (i in boxTxtColors1.text.split(', '))
+				{
+					box1Colors.push(Std.parseInt(i));
+				}
+				for (i in boxTxtColors2.text.split(', '))
+				{
+					box2Colors.push(Std.parseInt(i));
+				}
+				
+				ClientPrefs.editorBoxColors[0] = FlxColor.fromRGB(box1Colors[0], box1Colors[1], box1Colors[2]);
+				ClientPrefs.editorBoxColors[1] = FlxColor.fromRGB(box2Colors[0], box2Colors[1], box2Colors[2]);
+				ClientPrefs.flush();
+				
+				reloadGridLayer();
+			});
+			
+			tab_group_visual.add(boxTxt);
+			tab_group_visual.add(boxTxtColors1);
+			tab_group_visual.add(boxTxtColors2);
+			tab_group_visual.add(changecolors);
+			
+			var uiTxt = new FlxText(10, 155, 0, "UI Colors", 12);
+			
+			var uiBoxTxt = new FlxUIInputTextEx(10, 175, 150, '${ClientPrefs.editorUIColor.red}, ${ClientPrefs.editorUIColor.green}, ${ClientPrefs.editorUIColor.blue}', 8);
+			
+			var changecolors:FlxButton = new FlxButton(180, 170, "Change Color", function() {
+				var shit = uiBoxTxt.text.split(', ');
+				
+				ClientPrefs.editorUIColor = FlxColor.fromRGB(Std.parseInt(shit[0]), Std.parseInt(shit[1]), Std.parseInt(shit[2]));
+				ClientPrefs.flush();
+				
+				UI_box.color = ClientPrefs.editorUIColor;
+				reloadGridLayer();
+			});
+			
+			var prsTxt = new FlxText(10, 200, 0, "Presets", 12);
+			
+			var prsNm = new FlxText(10, 230, 0, "New Preset Name", 6);
+			var newPrsName = new FlxUIInputTextEx(10, 240, 150, '', 8);
+			
+			var lPrs = new FlxText(10, 260, 0, "Load Preset", 6);
+			var prsList = new FlxUIDropDownMenuEx(10, 270, FlxUIDropDownMenu.makeStrIdLabelArray(ClientPrefs.chartPresetList), function(preset:String) {
+				var presetToUse = ClientPrefs.chartPresets.get(preset);
+				ClientPrefs.editorGradColors = presetToUse[0];
+				ClientPrefs.editorGradVis = presetToUse[1];
+				ClientPrefs.editorBoxColors = presetToUse[2];
+				ClientPrefs.editorUIColor = presetToUse[3];
+				ClientPrefs.flush();
+				
+				reloadGradient();
+				check_grad_vis.checked = gradient.alive;
+				UI_box.color = ClientPrefs.editorUIColor;
+				reloadGridLayer();
+			});
+			
+			var newPrsButton = new FlxButton((newPrsName.x + newPrsName.width) + 10, 240, "New Preset", function() {
+				if (!ClientPrefs.chartPresets.exists(newPrsName.text)) ClientPrefs.chartPresetList.push(newPrsName.text);
+				ClientPrefs.chartPresets.set(newPrsName.text, [
+					[ClientPrefs.editorGradColors[0], ClientPrefs.editorGradColors[1]],
+					false,
+					[ClientPrefs.editorBoxColors[0], ClientPrefs.editorBoxColors[1]],
+					ClientPrefs.editorUIColor
+				]);
+				ClientPrefs.flush();
+				
+				prsList.setData(FlxUIDropDownMenu.makeStrIdLabelArray(ClientPrefs.chartPresetList));
+				
+				trace('New Preset! [${newPrsName.text}]\nValue: ${ClientPrefs.chartPresets.get(newPrsName.text)}');
+			});
+			
+			var clearPresets = new FlxButton((prsList.x + prsList.width) + 10, 270, "Clear Presets", function() {
+				openSubState(new Prompt('This action will clear all presets.\n\nProceed?', 0, function() {
+					ClientPrefs.chartPresets.clear();
+					ClientPrefs.chartPresetList = ['Default'];
+					ClientPrefs.chartPresets.set('Default', [
+						[FlxColor.fromRGB(0, 0, 0), FlxColor.fromRGB(0, 0, 0)],
+						false,
+						[FlxColor.fromRGB(255, 255, 255), FlxColor.fromRGB(210, 210, 210)],
+						FlxColor.fromRGB(250, 250, 250)
+					]);
+					ClientPrefs.flush();
+					
+					prsList.setData(FlxUIDropDownMenu.makeStrIdLabelArray(ClientPrefs.chartPresetList));
+				}, null, ignoreWarnings));
+			});
+			clearPresets.color = FlxColor.RED;
+			
+			tab_group_visual.add(prsTxt);
+			tab_group_visual.add(prsNm);
+			tab_group_visual.add(newPrsName);
+			tab_group_visual.add(newPrsButton);
+			tab_group_visual.add(lPrs);
+			tab_group_visual.add(prsList);
+			tab_group_visual.add(clearPresets);
+			
+			tab_group_visual.add(uiTxt);
+			tab_group_visual.add(uiBoxTxt);
+			tab_group_visual.add(changecolors);
+			
+			UI_box.addGroup(tab_group_visual);
+		}
+	 */
 	var sectionToCopy:Int = 0;
 	var notesCopied:Array<Dynamic> = [];
 	
@@ -656,7 +809,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 				song.notes[curSec].sectionNotes.push(copiedNote);
 			}
 		}
-		gridDirty = true;
+		updateGrid();
 	}
 	
 	function clearSection():Void
@@ -679,7 +832,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			}
 		}
 		
-		gridDirty = true;
+		updateGrid();
 		updateNoteUI();
 	}
 	
@@ -717,7 +870,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 				song.events.push([strumTime, copiedEventArray]);
 			}
 		}
-		gridDirty = true;
+		updateGrid();
 	}
 	
 	var currentType:Int = 0;
@@ -991,13 +1144,6 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	
 	override function update(elapsed:Float)
 	{
-		// Update grid only if dirty
-		if (gridDirty)
-		{
-			updateGrid();
-			gridDirty = false;
-		}
-		
 		final mouseControl:Bool = (!ToolKitUtils.isHaxeUIHovered(camHUD));
 		
 		ToolKitUtils.update();
@@ -1173,7 +1319,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 					{
 						selectNote(note);
 						note.chartData[3] = noteTypeIntMap.get(currentType);
-						gridDirty = true;
+						updateGrid();
 					}
 					else
 					{
@@ -1241,7 +1387,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		testRect.put();
 		hitbox.put();
 		
-		gridDirty = true;
+		updateGrid();
 		updateNoteUI();
 	}
 	
@@ -1358,7 +1504,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			
 			curSelectedNotes.resize(0);
 			
-			gridDirty = true;
+			updateGrid();
 		}
 		
 		if (vortex)
@@ -1463,7 +1609,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		
 		if (changed)
 		{
-			gridDirty = true;
+			updateGrid();
 			updateNoteUI();
 		}
 	}
@@ -1598,7 +1744,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		updateWaveform();
 		#end
 		
-		gridDirty = true; // force grid update after background rebuild
+		updateGrid();
 		
 		// events -> strum1 seperator
 		gridLayer.add(gridBG);
@@ -1842,7 +1988,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		if (!changed) return;
 		
 		updateNoteUI();
-		gridDirty = true;
+		updateGrid();
 	}
 	
 	function calculateTime(miliseconds:Float = 0):String
@@ -1855,7 +2001,6 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	
 	function resetSection(songBeginning:Bool = false, pause:Bool = true):Void
 	{
-		gridDirty = true;
 		updateGrid();
 		
 		toggleMusic(false);
@@ -1948,7 +2093,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		}
 		else
 		{
-			gridDirty = true;
+			updateGrid();
 			updateWaveform();
 		}
 		updateSectionUI();
@@ -2035,26 +2180,8 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		ui.updateEventUI();
 	}
 	
-	function getGridHash():String
-	{
-		var data = "";
-		for (section in song.notes)
-		{
-			for (note in section.sectionNotes)
-			{
-				data += note[0] + "," + note[1] + "," + note[2] + "," + note[3] + ";";
-			}
-		}
-		return data;
-	}
-	
 	function updateGrid():Void
 	{
-		var newHash = getGridHash();
-		if (newHash == lastGridHash && !gridDirty) return;
-		lastGridHash = newHash;
-		gridDirty = false;
-		
 		curRenderedNotes.forEach(spr -> spr?.destroy());
 		curRenderedSustains.forEach(spr -> spr?.destroy());
 		curRenderedNoteType.forEach(spr -> spr?.destroy());
@@ -2096,6 +2223,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			}
 			
 			note.mustPress = (note.lane != 1);
+			
 			note.player = (note.mustPress ? 0 : 1);
 		}
 		
@@ -2171,7 +2299,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		}
 		
 		// NEXT SECTION
-		var nextBeats:Float = getSectionBeats(1);
+		var beats:Float = getSectionBeats(1);
 		if (curSec < song.notes.length - 1)
 		{
 			for (i in song.notes[curSec + 1].sectionNotes)
@@ -2181,13 +2309,13 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 				nextRenderedNotes.add(note);
 				if (note.sustainLength > 0)
 				{
-					nextRenderedSustains.add(setupSusNote(note, nextBeats));
+					nextRenderedSustains.add(setupSusNote(note, beats));
 				}
 			}
 		}
 		
 		// PREV SECTION
-		var prevBeats:Float = getSectionBeats(-1);
+		var beats:Float = getSectionBeats(-1);
 		if (curSec > 0)
 		{
 			for (i in song.notes[curSec - 1].sectionNotes)
@@ -2197,17 +2325,17 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 				prevRenderedNotes.add(note);
 				if (note.sustainLength > 0)
 				{
-					prevRenderedSustains.add(setupSusNote(note, prevBeats));
+					prevRenderedSustains.add(setupSusNote(note, beats));
 				}
 			}
 		}
 		
 		// NEXT EVENTS
-		var nextStartThing:Float = sectionStartTime(1);
-		var nextEndThing:Float = sectionStartTime(2);
+		var startThing:Float = sectionStartTime(1);
+		var endThing:Float = sectionStartTime(2);
 		for (i in song.events)
 		{
-			if (nextEndThing > i[0] && i[0] >= nextStartThing)
+			if (endThing > i[0] && i[0] >= startThing)
 			{
 				var note:EditorNote = setupNoteData(i, true);
 				note.alpha = 0.6;
@@ -2363,7 +2491,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		}
 		changeEventSelected();
 		
-		gridDirty = true;
+		updateGrid();
 		updateNoteUI();
 	}
 	
@@ -2386,7 +2514,8 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		if (update)
 		{
 			curSelectedNotes.remove(note.chartData);
-			gridDirty = true;
+			
+			updateGrid();
 		}
 	}
 	
@@ -2406,7 +2535,8 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		{
 			song.notes[daSection].sectionNotes = [];
 		}
-		gridDirty = true;
+		
+		updateGrid();
 	}
 	
 	private function addNote(strum:Null<Float> = null, data:Null<Int> = null, type:Null<Int> = null):Array<Dynamic>
@@ -2472,7 +2602,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		
 		changeEventSelected();
 		
-		gridDirty = true;
+		updateGrid();
 		updateNoteUI();
 		
 		return newNote;
@@ -2512,7 +2642,6 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			curSelectedNotes.push(note);
 			notes.push(note);
 		}
-		gridDirty = true;
 	}
 	
 	function mirrorNotes(notesArray:Array<Dynamic>, axes:flixel.util.FlxAxes = X):Void
@@ -2559,7 +2688,6 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 				if (axes.y) note[0] = (maxTime - note[0] + minTime);
 			}
 		}
-		gridDirty = true;
 	}
 	
 	function transformNoteStrumlines(notesArray:Array<Dynamic>, fun:(noteStrumline:Int, minStrumline:Int, maxStrumline:Int) -> Int):Void
@@ -2585,7 +2713,6 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 			var newStrumline:Int = fun(getStrumline(note[1]), minStrumline, maxStrumline);
 			note[1] = ((note[1] % song.keys) + newStrumline * song.keys);
 		}
-		gridDirty = true;
 	}
 	
 	function shiftStrumlineTransform(noteStrumline:Int, minStrumline:Int, maxStrumline:Int):Int
@@ -2613,7 +2740,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 		undos.pop();
 		// song.notes = undos[undos.length - 1];
 		///trace(song.notes);
-		gridDirty = true;
+		// updateGrid();
 	}
 	
 	function getStrumTime(yPos:Float, doZoomCalc:Bool = true):Float
@@ -2681,7 +2808,7 @@ class ChartEditorState extends haxe.ui.backend.flixel.UIState
 	function clearEvents()
 	{
 		song.events = [];
-		gridDirty = true;
+		updateGrid();
 	}
 	
 	private function saveLevel()

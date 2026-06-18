@@ -407,9 +407,21 @@ class NoteSkin implements IFlxDestroyable
 		splashOffsets = null;
 		sustainSplashOffsets = null;
 		
-		noteAtlas = null;
-		splashAtlas = null;
-		sustainSplashAtlas = null;
+		if (noteAtlas != null)
+		{
+			noteAtlas.destroy();
+			noteAtlas = null;
+		}
+		if (splashAtlas != null)
+		{
+			splashAtlas.destroy();
+			splashAtlas = null;
+		}
+		if (sustainSplashAtlas != null)
+		{
+			sustainSplashAtlas.destroy();
+			sustainSplashAtlas = null;
+		}
 	}
 }
 

@@ -55,9 +55,10 @@ class NoteSplash extends FunkinSprite implements funkin.game.modchart.IModNote
 				+ '/'
 				+ _skin
 				+ '/image.png',
-				'game/noteskins/default/' + _skin + '/image.png'
-			];
-			
+				'game/noteskins/default/'
+				+ _skin
+				+ '/image.png'];
+				
 			#if MODS_ALLOWED
 			for (mod in Mods.globalMods)
 			{
